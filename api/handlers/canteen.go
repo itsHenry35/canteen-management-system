@@ -112,7 +112,6 @@ func ScanStudentQRCode(w http.ResponseWriter, r *http.Request) {
 			utils.ResponseError(w, http.StatusInternalServerError, "更新学生取餐记录失败")
 			return
 		}
-		resp.HasCollected = true
 	}
 
 	// 返回响应
