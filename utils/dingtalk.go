@@ -194,7 +194,7 @@ func findClassDepartments(accessToken string, superID int, classIDs *[]string) e
 		}
 
 		// 发送请求
-		time.Sleep(1000 * time.Millisecond) // 避免触发QPS限制
+		time.Sleep(500 * time.Millisecond) // 避免触发QPS限制
 		req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
 		if err != nil {
 			return fmt.Errorf("创建请求失败: %v", err)
@@ -311,7 +311,7 @@ func GetClassParentStudentRelations(classID string) ([]DingTalkGuardianStudentRe
 		}
 
 		// 发送请求
-		time.Sleep(1000 * time.Millisecond) // 避免触发QPS限制
+		time.Sleep(500 * time.Millisecond) // 避免触发QPS限制
 		req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
 		if err != nil {
 			return nil, fmt.Errorf("创建请求失败: %v", err)
@@ -483,6 +483,7 @@ func SendDingTalkActionCard(userIDs []string, card ActionCardMessage) error {
 		// 分批发送
 		for _, batch := range batches {
 			err := sendDingTalkActionCardBatch(accessToken, agentID, batch, card)
+			time.Sleep(1000 * time.Millisecond) // 避免触发QPS限制
 			if err != nil {
 				return err
 			}
