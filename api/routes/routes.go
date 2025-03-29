@@ -59,12 +59,13 @@ func SetupRouter() *mux.Router {
 	// 选餐管理
 	adminAPI.HandleFunc("/selections", handlers.GetStudentSelections).Methods("GET")
 	adminAPI.HandleFunc("/selections/batch", handlers.BatchSelectMeals).Methods("POST")
+	adminAPI.HandleFunc("/notify/unselected", handlers.NotifyUnselectedStudents).Methods("POST")
 
 	// 系统设置
 	adminAPI.HandleFunc("/settings", handlers.GetSettings).Methods("GET")
 	adminAPI.HandleFunc("/settings", handlers.UpdateSettings).Methods("PUT")
 
-	//危险API
+	// 危险API
 	adminAPI.HandleFunc("/rebuild-mapping", handlers.RebuildParentStudentMapping).Methods("POST")
 
 	// 食堂工作人员API路由

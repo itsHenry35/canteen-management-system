@@ -147,3 +147,40 @@ func ClearAllParentStudentRelations() error {
 	_, err := db.Exec("DELETE FROM parent_student_relations")
 	return err
 }
+
+// GetParentsByStudentID 根据学生ID获取所有家长的钉钉ID
+func GetParentsByStudentID(studentID int) ([]string, error) {
+	// 获取数据库连接
+	db := database.GetDB()
+
+	// 首先获取学生的钉钉ID
+	var studentDingTalkID string
+	err := db.QueryRow("SELECT dingtalk_id FROM students WHERE id = ?", studentID).Scan(&studentDingTalkID)
+	if err != nil {
+		return nil, err
+	}
+
+	// 如果学生没有钉钉ID或钉钉ID为0，则返回空列表
+	if studentDingTalkID == "" || studentDingTalkID == "0" {
+		return []string{}, nil
+	}
+
+	// 执行查询获取关联的家长ID
+	rows, err := db.Query("SELECT parent_id FROM parent_student_relations WHERE student_id = ?", studentDingTalkID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	// 收集家长ID
+	var parentIDs []string
+	for rows.Next() {
+		var parentID string
+		if err := rows.Scan(&parentID); err != nil {
+			return nil, err
+		}
+		parentIDs = append(parentIDs, parentID)
+	}
+
+	return parentIDs, nil
+}

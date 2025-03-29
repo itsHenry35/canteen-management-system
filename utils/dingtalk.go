@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/itsHenry35/canteen-management-system/config"
@@ -422,6 +423,107 @@ func SendDingTalkMessage(userIDs []string, message string) error {
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
 		return fmt.Errorf("failed to send DingTalk message: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// 读取响应
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response: %v", err)
+	}
+
+	// 解析响应
+	var result struct {
+		ErrCode int    `json:"errcode"`
+		ErrMsg  string `json:"errmsg"`
+	}
+	if err := json.Unmarshal(body, &result); err != nil {
+		return fmt.Errorf("failed to parse response: %v", err)
+	}
+
+	// 检查响应是否成功
+	if result.ErrCode != 0 {
+		return fmt.Errorf("DingTalk API error: %s (code: %d)", result.ErrMsg, result.ErrCode)
+	}
+
+	return nil
+}
+
+// ActionCardMessage 定义钉钉卡片消息结构
+type ActionCardMessage struct {
+	Title       string `json:"title"`
+	Markdown    string `json:"markdown"`
+	SingleTitle string `json:"single_title"`
+	SingleURL   string `json:"single_url"`
+}
+
+// SendDingTalkActionCard 发送钉钉卡片消息
+func SendDingTalkActionCard(userIDs []string, card ActionCardMessage) error {
+	// 获取访问令牌
+	accessToken, err := GetDingTalkToken()
+	if err != nil {
+		return err
+	}
+
+	// 获取配置
+	cfg := config.Get()
+	agentID := cfg.DingTalk.AgentID
+
+	// 如果userIDs长度超过100，需要分批发送
+	if len(userIDs) > 100 {
+		var batches [][]string
+		for i := 0; i < len(userIDs); i += 100 {
+			end := i + 100
+			if end > len(userIDs) {
+				end = len(userIDs)
+			}
+			batches = append(batches, userIDs[i:end])
+		}
+
+		// 分批发送
+		for _, batch := range batches {
+			err := sendDingTalkActionCardBatch(accessToken, agentID, batch, card)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	// 单批发送
+	return sendDingTalkActionCardBatch(accessToken, agentID, userIDs, card)
+}
+
+// sendDingTalkActionCardBatch 按批次发送钉钉卡片消息
+func sendDingTalkActionCardBatch(accessToken, agentID string, userIDs []string, card ActionCardMessage) error {
+	// 构建请求数据
+	data := map[string]interface{}{
+		"agent_id":    agentID,
+		"userid_list": strings.Join(userIDs, ","),
+		"msg": map[string]interface{}{
+			"msgtype": "action_card",
+			"action_card": map[string]string{
+				"title":        card.Title,
+				"markdown":     card.Markdown,
+				"single_title": card.SingleTitle,
+				"single_url":   card.SingleURL,
+			},
+		},
+	}
+
+	// 编码请求数据
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return fmt.Errorf("failed to encode request: %v", err)
+	}
+
+	// 请求URL
+	url := fmt.Sprintf("https://oapi.dingtalk.com/topapi/message/corpconversation/asyncsend_v2?access_token=%s", accessToken)
+
+	// 发送请求
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return fmt.Errorf("failed to send DingTalk action card: %v", err)
 	}
 	defer resp.Body.Close()
 

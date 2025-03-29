@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -315,11 +316,83 @@ func BatchSelectMeals(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 获取餐信息
+	meal, err := models.GetMealByID(req.MealID)
+	if err != nil {
+		utils.ResponseError(w, http.StatusNotFound, "未找到餐")
+		return
+	}
+
 	// 批量选餐
 	count, err := models.BatchSelectMeals(req.StudentIDs, req.MealID, req.MealType)
 	if err != nil {
 		utils.ResponseError(w, http.StatusInternalServerError, "批量选餐失败: "+err.Error())
 		return
+	}
+
+	// 如果成功批量选餐，发送钉钉通知
+	if count > 0 {
+		// 启动goroutine异步发送通知
+		go func() {
+			// 收集所有相关人员的钉钉ID
+			dingTalkIDs := make([]string, 0)
+
+			for _, studentID := range req.StudentIDs {
+				student, err := models.GetStudentByID(studentID)
+				if err != nil {
+					utils.LogError(fmt.Sprintf("获取学生信息失败, ID=%d: %v", studentID, err))
+					continue
+				}
+
+				// 收集学生钉钉ID
+				if student.DingTalkID != "" && student.DingTalkID != "0" {
+					dingTalkIDs = append(dingTalkIDs, student.DingTalkID)
+				}
+
+				// 获取并收集家长钉钉ID
+				parents, err := models.GetParentsByStudentID(student.ID)
+				if err != nil {
+					utils.LogError(fmt.Sprintf("获取学生ID=%d的家长信息失败: %v", student.ID, err))
+					continue
+				}
+
+				for _, parent := range parents {
+					if parent != "" && parent != "0" {
+						dingTalkIDs = append(dingTalkIDs, parent)
+					}
+				}
+			}
+
+			// 如果没有需要通知的人，直接返回
+			if len(dingTalkIDs) == 0 {
+				utils.LogError("没有找到需要通知的学生或家长")
+				return
+			}
+
+			// 构建通知消息
+			title := "选餐提醒"
+			var mealTypeStr string
+			if req.MealType == models.MealTypeA {
+				mealTypeStr = "A餐"
+			} else {
+				mealTypeStr = "B餐"
+			}
+
+			markdown := fmt.Sprintf("## 选餐通知\n\n**亲爱的家长/同学，您的餐食：%s已由管理员代选为%s，详情请查看选餐系统。**", meal.Name, mealTypeStr)
+
+			card := utils.ActionCardMessage{
+				Title:       title,
+				Markdown:    markdown,
+				SingleTitle: "查看详情",
+				SingleURL:   "https://xuancan.itshenryz.com/dingtalk_auth",
+			}
+
+			// 发送通知
+			err = utils.SendDingTalkActionCard(dingTalkIDs, card)
+			if err != nil {
+				utils.LogError(fmt.Sprintf("发送批量选餐通知失败: %v", err))
+			}
+		}()
 	}
 
 	// 返回响应
