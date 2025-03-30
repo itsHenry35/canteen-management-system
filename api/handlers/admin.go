@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/itsHenry35/canteen-management-system/api/middlewares"
@@ -271,6 +272,17 @@ func NotifyUnselectedStudents(w http.ResponseWriter, r *http.Request) {
 	meal, err := models.GetMealByID(req.MealID)
 	if err != nil {
 		utils.ResponseError(w, http.StatusNotFound, "未找到指定的餐")
+		return
+	}
+
+	// 验证选餐时间
+	now := time.Now()
+	if now.Before(meal.SelectionStartTime) {
+		utils.ResponseError(w, http.StatusBadRequest, "选餐尚未开始，不能发送提醒")
+		return
+	}
+	if now.After(meal.SelectionEndTime) {
+		utils.ResponseError(w, http.StatusBadRequest, "选餐已结束，不能发送提醒")
 		return
 	}
 
