@@ -12,13 +12,12 @@ import (
 
 // MealSelection 学生选餐记录
 type MealSelection struct {
-	ID         int       `json:"id"`
-	StudentID  int       `json:"student_id"`
-	MealID     int       `json:"meal_id"`
-	MealType   MealType  `json:"meal_type"`
-	SelectedAt time.Time `json:"selected_at"`
-	Student    *Student  `json:"student,omitempty"`
-	Meal       *Meal     `json:"meal,omitempty"`
+	ID        int      `json:"id"`
+	StudentID int      `json:"student_id"`
+	MealID    int      `json:"meal_id"`
+	MealType  MealType `json:"meal_type"`
+	Student   *Student `json:"student,omitempty"`
+	Meal      *Meal    `json:"meal,omitempty"`
 }
 
 // CreateMealSelection 创建学生选餐记录
@@ -83,14 +82,14 @@ func CreateMealSelection(studentID, mealID int, mealType MealType) (*MealSelecti
 		if count > 0 {
 			// 更新已有记录
 			result, err = tx.Exec(
-				"UPDATE meal_selections SET meal_type = ?, selected_at = ? WHERE student_id = ? AND meal_id = ?",
-				mealType, now, studentID, mealID,
+				"UPDATE meal_selections SET meal_type = ? WHERE student_id = ? AND meal_id = ?",
+				mealType, studentID, mealID,
 			)
 		} else {
 			// 插入新记录
 			result, err = tx.Exec(
-				"INSERT INTO meal_selections (student_id, meal_id, meal_type, selected_at) VALUES (?, ?, ?, ?)",
-				studentID, mealID, mealType, now,
+				"INSERT INTO meal_selections (student_id, meal_id, meal_type) VALUES (?, ?, ?)",
+				studentID, mealID, mealType,
 			)
 		}
 
@@ -127,13 +126,12 @@ func CreateMealSelection(studentID, mealID int, mealType MealType) (*MealSelecti
 
 		// 成功完成，返回选餐记录
 		return &MealSelection{
-			ID:         int(selectionID),
-			StudentID:  studentID,
-			MealID:     mealID,
-			MealType:   mealType,
-			SelectedAt: now,
-			Student:    student,
-			Meal:       meal,
+			ID:        int(selectionID),
+			StudentID: studentID,
+			MealID:    mealID,
+			MealType:  mealType,
+			Student:   student,
+			Meal:      meal,
 		}, nil
 	}
 
@@ -148,10 +146,10 @@ func GetMealSelectionByStudentAndMeal(studentID, mealID int) (*MealSelection, er
 	// 查询选餐记录
 	var selection MealSelection
 	err := db.QueryRow(
-		"SELECT id, student_id, meal_id, meal_type, selected_at FROM meal_selections WHERE student_id = ? AND meal_id = ?",
+		"SELECT id, student_id, meal_id, meal_type FROM meal_selections WHERE student_id = ? AND meal_id = ?",
 		studentID, mealID,
 	).Scan(
-		&selection.ID, &selection.StudentID, &selection.MealID, &selection.MealType, &selection.SelectedAt,
+		&selection.ID, &selection.StudentID, &selection.MealID, &selection.MealType,
 	)
 
 	if err != nil {
@@ -183,7 +181,7 @@ func GetMealSelectionsByStudent(studentID int) ([]*MealSelection, error) {
 
 	// 查询学生的所有选餐记录
 	rows, err := db.Query(
-		"SELECT id, student_id, meal_id, meal_type, selected_at FROM meal_selections WHERE student_id = ? ORDER BY selected_at DESC",
+		"SELECT id, student_id, meal_id, meal_type FROM meal_selections WHERE student_id = ?",
 		studentID,
 	)
 	if err != nil {
@@ -196,7 +194,7 @@ func GetMealSelectionsByStudent(studentID int) ([]*MealSelection, error) {
 	for rows.Next() {
 		var selection MealSelection
 		err := rows.Scan(
-			&selection.ID, &selection.StudentID, &selection.MealID, &selection.MealType, &selection.SelectedAt,
+			&selection.ID, &selection.StudentID, &selection.MealID, &selection.MealType,
 		)
 		if err != nil {
 			return nil, err
@@ -222,7 +220,7 @@ func GetMealSelectionsByMeal(mealID int) ([]*MealSelection, error) {
 
 	// 查询餐的所有选餐记录
 	rows, err := db.Query(
-		"SELECT id, student_id, meal_id, meal_type, selected_at FROM meal_selections WHERE meal_id = ? ORDER BY selected_at",
+		"SELECT id, student_id, meal_id, meal_type FROM meal_selections WHERE meal_id = ?",
 		mealID,
 	)
 	if err != nil {
@@ -235,7 +233,7 @@ func GetMealSelectionsByMeal(mealID int) ([]*MealSelection, error) {
 	for rows.Next() {
 		var selection MealSelection
 		err := rows.Scan(
-			&selection.ID, &selection.StudentID, &selection.MealID, &selection.MealType, &selection.SelectedAt,
+			&selection.ID, &selection.StudentID, &selection.MealID, &selection.MealType,
 		)
 		if err != nil {
 			return nil, err
@@ -264,9 +262,6 @@ func BatchSelectMeals(studentIDs []int, mealID int, mealType MealType) (int, err
 	if err != nil {
 		return 0, err
 	}
-
-	// 验证是否在选餐时间范围内
-	now := time.Now()
 
 	// 最大重试次数
 	maxRetries := 3
@@ -316,14 +311,14 @@ func BatchSelectMeals(studentIDs []int, mealID int, mealType MealType) (int, err
 			if existCount > 0 {
 				// 更新已有记录
 				_, err = tx.Exec(
-					"UPDATE meal_selections SET meal_type = ?, selected_at = ? WHERE student_id = ? AND meal_id = ?",
-					mealType, now, studentID, mealID,
+					"UPDATE meal_selections SET meal_type = ? WHERE student_id = ? AND meal_id = ?",
+					mealType, studentID, mealID,
 				)
 			} else {
 				// 插入新记录
 				_, err = tx.Exec(
-					"INSERT INTO meal_selections (student_id, meal_id, meal_type, selected_at) VALUES (?, ?, ?, ?)",
-					studentID, mealID, mealType, now,
+					"INSERT INTO meal_selections (student_id, meal_id, meal_type) VALUES (?, ?, ?)",
+					studentID, mealID, mealType,
 				)
 			}
 
