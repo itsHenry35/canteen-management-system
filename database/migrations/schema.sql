@@ -35,8 +35,7 @@ CREATE TABLE IF NOT EXISTS meals (
     selection_end_time TIMESTAMP NOT NULL,
     effective_start_date TIMESTAMP NOT NULL,
     effective_end_date TIMESTAMP NOT NULL,
-    image_path TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    image_path TEXT NOT NULL
 );
 
 -- 选餐记录表

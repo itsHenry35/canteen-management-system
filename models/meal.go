@@ -18,7 +18,6 @@ type Meal struct {
 	EffectiveStartDate time.Time `json:"effective_start_date"` // 领餐开始生效日期
 	EffectiveEndDate   time.Time `json:"effective_end_date"`   // 领餐结束生效日期
 	ImagePath          string    `json:"image_path"`           // 餐的图片地址
-	CreatedAt          time.Time `json:"created_at"`
 }
 
 // CreateMeal 创建新餐
@@ -40,8 +39,8 @@ func CreateMeal(name string, selectionStartTime, selectionEndTime, effectiveStar
 
 	// 插入餐数据
 	result, err := tx.Exec(
-		"INSERT INTO meals (name, selection_start_time, selection_end_time, effective_start_date, effective_end_date, image_path, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-		name, selectionStartTime, selectionEndTime, effectiveStartDate, effectiveEndDate, imagePath, time.Now(),
+		"INSERT INTO meals (name, selection_start_time, selection_end_time, effective_start_date, effective_end_date, image_path) VALUES (?, ?, ?, ?, ?, ?)",
+		name, selectionStartTime, selectionEndTime, effectiveStartDate, effectiveEndDate, imagePath,
 	)
 	if err != nil {
 		return nil, err
@@ -67,7 +66,6 @@ func CreateMeal(name string, selectionStartTime, selectionEndTime, effectiveStar
 		EffectiveStartDate: effectiveStartDate,
 		EffectiveEndDate:   effectiveEndDate,
 		ImagePath:          imagePath,
-		CreatedAt:          time.Now(),
 	}, nil
 }
 
@@ -79,10 +77,10 @@ func GetMealByID(id int) (*Meal, error) {
 	// 查询餐
 	var meal Meal
 	err := db.QueryRow(
-		"SELECT id, name, selection_start_time, selection_end_time, effective_start_date, effective_end_date, image_path, created_at FROM meals WHERE id = ?",
+		"SELECT id, name, selection_start_time, selection_end_time, effective_start_date, effective_end_date, image_path FROM meals WHERE id = ?",
 		id,
 	).Scan(
-		&meal.ID, &meal.Name, &meal.SelectionStartTime, &meal.SelectionEndTime, &meal.EffectiveStartDate, &meal.EffectiveEndDate, &meal.ImagePath, &meal.CreatedAt,
+		&meal.ID, &meal.Name, &meal.SelectionStartTime, &meal.SelectionEndTime, &meal.EffectiveStartDate, &meal.EffectiveEndDate, &meal.ImagePath,
 	)
 
 	if err != nil {
@@ -102,7 +100,7 @@ func GetAllMeals() ([]*Meal, error) {
 
 	// 查询所有餐
 	rows, err := db.Query(
-		"SELECT id, name, selection_start_time, selection_end_time, effective_start_date, effective_end_date, image_path, created_at FROM meals ORDER BY effective_start_date",
+		"SELECT id, name, selection_start_time, selection_end_time, effective_start_date, effective_end_date, image_path FROM meals ORDER BY effective_start_date",
 	)
 	if err != nil {
 		return nil, err
@@ -114,7 +112,7 @@ func GetAllMeals() ([]*Meal, error) {
 	for rows.Next() {
 		var meal Meal
 		err := rows.Scan(
-			&meal.ID, &meal.Name, &meal.SelectionStartTime, &meal.SelectionEndTime, &meal.EffectiveStartDate, &meal.EffectiveEndDate, &meal.ImagePath, &meal.CreatedAt,
+			&meal.ID, &meal.Name, &meal.SelectionStartTime, &meal.SelectionEndTime, &meal.EffectiveStartDate, &meal.EffectiveEndDate, &meal.ImagePath,
 		)
 		if err != nil {
 			return nil, err
@@ -133,7 +131,7 @@ func GetCurrentSelectableMeals() ([]*Meal, error) {
 	// 查询当前可以选择的餐
 	now := time.Now()
 	rows, err := db.Query(
-		"SELECT id, name, selection_start_time, selection_end_time, effective_start_date, effective_end_date, image_path, created_at FROM meals WHERE selection_start_time <= ? AND selection_end_time >= ? ORDER BY effective_start_date",
+		"SELECT id, name, selection_start_time, selection_end_time, effective_start_date, effective_end_date, image_path FROM meals WHERE selection_start_time <= ? AND selection_end_time >= ? ORDER BY effective_start_date",
 		now, now,
 	)
 	if err != nil {
@@ -146,7 +144,7 @@ func GetCurrentSelectableMeals() ([]*Meal, error) {
 	for rows.Next() {
 		var meal Meal
 		err := rows.Scan(
-			&meal.ID, &meal.Name, &meal.SelectionStartTime, &meal.SelectionEndTime, &meal.EffectiveStartDate, &meal.EffectiveEndDate, &meal.ImagePath, &meal.CreatedAt,
+			&meal.ID, &meal.Name, &meal.SelectionStartTime, &meal.SelectionEndTime, &meal.EffectiveStartDate, &meal.EffectiveEndDate, &meal.ImagePath,
 		)
 		if err != nil {
 			return nil, err

@@ -226,7 +226,6 @@ func GetStudentMealSelections(w http.ResponseWriter, r *http.Request) {
 			"effective_start_date": meal.EffectiveStartDate,
 			"effective_end_date":   meal.EffectiveEndDate,
 			"image_path":           meal.ImagePath,
-			"created_at":           meal.CreatedAt,
 		})
 	}
 
@@ -253,7 +252,6 @@ func GetStudentMealSelections(w http.ResponseWriter, r *http.Request) {
 				"effective_start_date": meal.EffectiveStartDate,
 				"effective_end_date":   meal.EffectiveEndDate,
 				"image_path":           meal.ImagePath,
-				"created_at":           meal.CreatedAt,
 			})
 		}
 	}
