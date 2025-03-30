@@ -81,52 +81,78 @@ func GetDingTalkToken() (string, error) {
 
 // GetDingTalkUserInfo 获取钉钉用户信息
 func GetDingTalkUserInfo(code string) (*DingTalkUserInfo, error) {
-	// 获取访问令牌
-	accessToken, err := GetDingTalkToken()
-	if err != nil {
-		return nil, err
+	// 最大重试次数
+	maxRetries := 3
+	var lastErr error
+
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		// 如果不是第一次尝试，等待一段时间再重试
+		// 等待时间随着重试次数增加而增加 (500ms, 1000ms, 2000ms)
+		if attempt > 0 {
+			backoffTime := time.Duration(500*1<<uint(attempt-1)) * time.Millisecond
+			time.Sleep(backoffTime)
+			log.Printf("重试获取钉钉用户信息，第 %d 次尝试, 等待时间: %v", attempt+1, backoffTime)
+		}
+
+		// 获取访问令牌
+		accessToken, err := GetDingTalkToken()
+		if err != nil {
+			lastErr = err
+			continue
+		}
+
+		// 请求URL
+		url := fmt.Sprintf("https://oapi.dingtalk.com/user/getuserinfo?access_token=%s&code=%s", accessToken, code)
+
+		// 发送请求
+		resp, err := http.Get(url)
+		if err != nil {
+			lastErr = fmt.Errorf("failed to request DingTalk user info: %v", err)
+			continue
+		}
+
+		// 读取响应
+		body, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if err != nil {
+			lastErr = fmt.Errorf("failed to read response: %v", err)
+			continue
+		}
+
+		// 解析响应
+		var result struct {
+			ErrCode  int    `json:"errcode"`
+			ErrMsg   string `json:"errmsg"`
+			UserID   string `json:"userid"`
+			Name     string `json:"name"`
+			DeviceID string `json:"deviceId"`
+		}
+
+		if err := json.Unmarshal(body, &result); err != nil {
+			lastErr = fmt.Errorf("failed to parse response: %v", err)
+			continue
+		}
+
+		// 如果是QPS超限错误，进行重试
+		if result.ErrCode == 88 || result.ErrCode == -1 {
+			lastErr = fmt.Errorf("DingTalk API QPS limit: %s (code: %d)", result.ErrMsg, result.ErrCode)
+			continue
+		}
+
+		// 检查响应是否成功
+		if result.ErrCode != 0 {
+			return nil, fmt.Errorf("DingTalk API error: %s (code: %d)", result.ErrMsg, result.ErrCode)
+		}
+
+		// 返回用户信息
+		return &DingTalkUserInfo{
+			UserID:   result.UserID,
+			Name:     result.Name,
+			DeviceID: result.DeviceID,
+		}, nil
 	}
 
-	// 请求URL
-	url := fmt.Sprintf("https://oapi.dingtalk.com/user/getuserinfo?access_token=%s&code=%s", accessToken, code)
-
-	// 发送请求
-	resp, err := http.Get(url)
-	if err != nil {
-		return nil, fmt.Errorf("failed to request DingTalk user info: %v", err)
-	}
-	defer resp.Body.Close()
-
-	// 读取响应
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response: %v", err)
-	}
-
-	// 解析响应
-	var result struct {
-		ErrCode  int    `json:"errcode"`
-		ErrMsg   string `json:"errmsg"`
-		UserID   string `json:"userid"`
-		Name     string `json:"name"`
-		DeviceID string `json:"deviceId"`
-	}
-
-	if err := json.Unmarshal(body, &result); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %v", err)
-	}
-
-	// 检查响应是否成功
-	if result.ErrCode != 0 {
-		return nil, fmt.Errorf("DingTalk API error: %s (code: %d)", result.ErrMsg, result.ErrCode)
-	}
-
-	// 返回用户信息
-	return &DingTalkUserInfo{
-		UserID:   result.UserID,
-		Name:     result.Name,
-		DeviceID: result.DeviceID,
-	}, nil
+	return nil, fmt.Errorf("获取钉钉用户信息失败，已重试 %d 次: %v", maxRetries, lastErr)
 }
 
 // DingTalkUserInfo 钉钉用户信息结构
