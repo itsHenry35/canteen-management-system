@@ -378,7 +378,7 @@ func BatchSelectMeals(w http.ResponseWriter, r *http.Request) {
 				mealTypeStr = "B餐"
 			}
 
-			markdown := fmt.Sprintf("## 选餐通知\n\n**亲爱的家长/同学，您的餐食：%s已由管理员代选为%s，详情请查看选餐系统。**", meal.Name, mealTypeStr)
+			markdown := fmt.Sprintf("## 选餐通知\n\n# 亲爱的家长/同学，您的餐食：%s已由管理员代选为%s，详情请查看选餐系统。", meal.Name, mealTypeStr)
 
 			card := utils.ActionCardMessage{
 				Title:       title,

@@ -326,7 +326,7 @@ func NotifyUnselectedStudents(w http.ResponseWriter, r *http.Request) {
 
 	// 构建钉钉通知消息
 	title := "选餐提醒"
-	markdown := fmt.Sprintf("## 选餐提醒\n\n**亲爱的家长/同学，您尚未完成%s的选餐，请及时完成选餐。**\n\n**选餐截止时间为: %s**", meal.Name, meal.SelectionEndTime.Format("2006-01-02 15:04:05"))
+	markdown := fmt.Sprintf("## 选餐提醒\n\n# 亲爱的家长/同学，您尚未完成%s的选餐，请及时完成选餐。\n\n# 选餐截止时间为: %s**", meal.Name, meal.SelectionEndTime.Format("2006-01-02 15:04:05"))
 
 	card := utils.ActionCardMessage{
 		Title:       title,

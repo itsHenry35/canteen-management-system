@@ -412,69 +412,6 @@ func GetClassParentStudentRelations(classID string) ([]DingTalkGuardianStudentRe
 	return allRelations, nil
 }
 
-// SendDingTalkMessage 发送钉钉消息
-func SendDingTalkMessage(userIDs []string, message string) error {
-	// 获取访问令牌
-	accessToken, err := GetDingTalkToken()
-	if err != nil {
-		return err
-	}
-
-	// 获取配置
-	cfg := config.Get()
-	agentID := cfg.DingTalk.AgentID
-
-	// 构建请求数据
-	data := map[string]interface{}{
-		"agent_id":    agentID,
-		"userid_list": userIDs,
-		"msg": map[string]interface{}{
-			"msgtype": "text",
-			"text": map[string]string{
-				"content": message,
-			},
-		},
-	}
-
-	// 编码请求数据
-	jsonData, err := json.Marshal(data)
-	if err != nil {
-		return fmt.Errorf("failed to encode request: %v", err)
-	}
-
-	// 请求URL
-	url := fmt.Sprintf("https://oapi.dingtalk.com/topapi/message/corpconversation/asyncsend_v2?access_token=%s", accessToken)
-
-	// 发送请求
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
-	if err != nil {
-		return fmt.Errorf("failed to send DingTalk message: %v", err)
-	}
-	defer resp.Body.Close()
-
-	// 读取响应
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("failed to read response: %v", err)
-	}
-
-	// 解析响应
-	var result struct {
-		ErrCode int    `json:"errcode"`
-		ErrMsg  string `json:"errmsg"`
-	}
-	if err := json.Unmarshal(body, &result); err != nil {
-		return fmt.Errorf("failed to parse response: %v", err)
-	}
-
-	// 检查响应是否成功
-	if result.ErrCode != 0 {
-		return fmt.Errorf("DingTalk API error: %s (code: %d)", result.ErrMsg, result.ErrCode)
-	}
-
-	return nil
-}
-
 // ActionCardMessage 定义钉钉卡片消息结构
 type ActionCardMessage struct {
 	Title       string `json:"title"`
