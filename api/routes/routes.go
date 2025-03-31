@@ -70,7 +70,7 @@ func SetupRouter() *mux.Router {
 
 	// 食堂工作人员API路由
 	canteenAPI := secured.PathPrefix("/canteen").Subrouter()
-	canteenAPI.Use(middlewares.RoleMiddleware(services.RoleCanteenA, services.RoleCanteenB))
+	canteenAPI.Use(middlewares.RoleMiddleware(services.RoleCanteenA, services.RoleCanteenB, services.RoleCanteenTest))
 
 	// 扫码取餐 (现在包含记录取餐功能)
 	canteenAPI.HandleFunc("/scan", handlers.ScanStudentQRCode).Methods("POST")

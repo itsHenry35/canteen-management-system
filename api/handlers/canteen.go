@@ -48,6 +48,7 @@ func ScanStudentQRCode(w http.ResponseWriter, r *http.Request) {
 		mealType = models.MealTypeA
 	case services.RoleCanteenB:
 		mealType = models.MealTypeB
+	case services.RoleCanteenTest:
 	default:
 		utils.ResponseError(w, http.StatusForbidden, "无效的操作人员类型")
 		return
@@ -91,6 +92,12 @@ func ScanStudentQRCode(w http.ResponseWriter, r *http.Request) {
 	// 如果有选餐记录，设置餐食类型
 	if selection != nil {
 		resp.MealType = selection.MealType
+	}
+
+	// 如果是测试账号，直接返回响应
+	if role == services.RoleCanteenTest {
+		utils.ResponseOK(w, resp)
+		return
 	}
 
 	// 检查学生是否已在今天取餐

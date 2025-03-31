@@ -85,8 +85,9 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		resp.User.Role = "canteen_a"
 	} else if user.Role == models.RoleCanteenB {
 		resp.User.Role = "canteen_b"
+	} else if user.Role == models.RoleCanteenTest {
+		resp.User.Role = "canteen_test"
 	}
-
 	// 返回响应
 	utils.ResponseOK(w, resp)
 }
@@ -150,10 +151,6 @@ func DingTalkLogin(w http.ResponseWriter, r *http.Request) {
 
 		if u.Role == models.RoleAdmin {
 			resp.User.Role = "admin"
-		} else if u.Role == models.RoleCanteenA {
-			resp.User.Role = "canteen_a"
-		} else if u.Role == models.RoleCanteenB {
-			resp.User.Role = "canteen_b"
 		}
 
 		utils.ResponseOK(w, resp)

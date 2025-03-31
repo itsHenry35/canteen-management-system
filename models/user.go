@@ -11,9 +11,10 @@ import (
 type Role string
 
 const (
-	RoleAdmin    Role = "admin"
-	RoleCanteenA Role = "canteen_a"
-	RoleCanteenB Role = "canteen_b"
+	RoleAdmin       Role = "admin"
+	RoleCanteenA    Role = "canteen_a"
+	RoleCanteenB    Role = "canteen_b"
+	RoleCanteenTest Role = "canteen_test"
 )
 
 // User 用户模型
@@ -47,7 +48,7 @@ func CreateUser(username, password, fullName string, Role Role, dingtalkId strin
 	// 插入用户数据
 	result, err := tx.Exec(
 		"INSERT INTO users (username, password, full_name, role, dingtalk_id) VALUES (?, ?, ?, ?, ?)",
-		username, string(hashedPassword), fullName, Role,
+		username, string(hashedPassword), fullName, Role, dingtalkId,
 	)
 	if err != nil {
 		return nil, err

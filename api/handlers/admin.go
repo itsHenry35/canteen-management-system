@@ -96,7 +96,7 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 验证用户类型
-	if req.Role != models.RoleAdmin && req.Role != models.RoleCanteenA && req.Role != models.RoleCanteenB {
+	if req.Role != models.RoleAdmin && req.Role != models.RoleCanteenA && req.Role != models.RoleCanteenB && req.Role != models.RoleCanteenTest {
 		utils.ResponseError(w, http.StatusBadRequest, "invalid user type")
 		return
 	}

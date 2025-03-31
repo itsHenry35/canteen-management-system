@@ -14,10 +14,11 @@ import (
 type UserRole string
 
 const (
-	RoleAdmin    UserRole = "admin"
-	RoleCanteenA UserRole = "canteen_a"
-	RoleCanteenB UserRole = "canteen_b"
-	RoleStudent  UserRole = "student"
+	RoleAdmin       UserRole = "admin"
+	RoleCanteenA    UserRole = "canteen_a"
+	RoleCanteenB    UserRole = "canteen_b"
+	RoleCanteenTest UserRole = "canteen_test"
+	RoleStudent     UserRole = "student"
 )
 
 // JWTClaims JWT 的自定义声明
@@ -106,6 +107,10 @@ func Login(username, password string) (string, interface{}, error) {
 		role = RoleCanteenA
 	} else if user.Role == models.RoleCanteenB {
 		role = RoleCanteenB
+	} else if user.Role == models.RoleCanteenTest {
+		role = RoleCanteenTest
+	} else {
+		return "", nil, errors.New("用户类型无效")
 	}
 
 	// 生成 token
@@ -147,10 +152,6 @@ func DingTalkLogin(code string) (string, interface{}, error) {
 		var role UserRole
 		if user.Role == models.RoleAdmin {
 			role = RoleAdmin
-		} else if user.Role == models.RoleCanteenA {
-			role = RoleCanteenA
-		} else if user.Role == models.RoleCanteenB {
-			role = RoleCanteenB
 		} else {
 			return "", nil, errors.New("用户类型无效")
 		}
