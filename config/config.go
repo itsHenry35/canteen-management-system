@@ -31,6 +31,12 @@ type Config struct {
 		JWTSecret     string `json:"jwt_secret"`     // JWT 密钥
 		EncryptionKey string `json:"encryption_key"` // 数据加密密钥 (必须是16, 24, 或 32字节长)
 	} `json:"security"`
+	Website struct {
+		Name           string `json:"name"`             // 网站名称
+		ICPBeian       string `json:"icp_beian"`        // ICP备案信息
+		PublicSecBeian string `json:"public_sec_beian"` // 公安部备案信息
+		Domain         string `json:"domain"`           // 网站域名，用于通知链接
+	} `json:"website"`
 }
 
 // Load 加载配置文件
@@ -45,6 +51,10 @@ func Load() error {
 		config.Database.Path = "./data/canteen.db"
 		config.Security.JWTSecret = "default-jwt-secret-please-change-in-production" // 默认JWT密钥
 		config.Security.EncryptionKey = "default-encryption-key-needs-change"        // 默认加密密钥
+		config.Website.Name = "饭卡管理系统"                                               // 默认网站名称
+		config.Website.ICPBeian = ""                                                 // 默认空ICP备案信息
+		config.Website.PublicSecBeian = ""                                           // 默认空公安部备案信息
+		config.Website.Domain = ""                                                   // 默认域名
 
 		// 检查配置文件是否存在
 		if _, statErr := os.Stat("config.json"); os.IsNotExist(statErr) {

@@ -22,7 +22,7 @@ func SetupRouter() *mux.Router {
 	// 公开API路由
 	api.HandleFunc("/login", handlers.Login).Methods("POST")
 	api.HandleFunc("/dingtalk/login", handlers.DingTalkLogin).Methods("POST")
-	api.HandleFunc("/dingtalk_corpid", handlers.GetDingTalkCorpID).Methods("GET")
+	api.HandleFunc("/website_info", handlers.GetWebsiteInfo).Methods("GET")
 
 	// 需要身份验证的API路由
 	secured := api.PathPrefix("").Subrouter()

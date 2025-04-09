@@ -11,6 +11,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/itsHenry35/canteen-management-system/api/middlewares"
+	"github.com/itsHenry35/canteen-management-system/config"
 	"github.com/itsHenry35/canteen-management-system/models"
 	"github.com/itsHenry35/canteen-management-system/utils"
 )
@@ -369,6 +370,9 @@ func BatchSelectMeals(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
+			// 获取配置的域名
+			domain := config.Get().Website.Domain
+
 			// 构建通知消息
 			title := "选餐提醒"
 			var mealTypeStr string
@@ -384,7 +388,7 @@ func BatchSelectMeals(w http.ResponseWriter, r *http.Request) {
 				Title:       title,
 				Markdown:    markdown,
 				SingleTitle: "查看详情",
-				SingleURL:   "https://xuancan.itshenryz.com/dingtalk_auth",
+				SingleURL:   fmt.Sprintf("%s/dingtalk_auth", domain),
 			}
 
 			// 发送通知
@@ -456,5 +460,130 @@ func GetStudentCurrentSelection(w http.ResponseWriter, r *http.Request) {
 	utils.ResponseOK(w, map[string]interface{}{
 		"has_selection": true,
 		"selection":     selection,
+	})
+}
+
+// NotifyUnselectedStudents 手动提醒未选餐学生
+func NotifyUnselectedStudents(w http.ResponseWriter, r *http.Request) {
+	// 解析请求
+	var req NotifyUnselectedStudentsRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.ResponseError(w, http.StatusBadRequest, "无效的请求")
+		return
+	}
+
+	// 验证餐ID
+	meal, err := models.GetMealByID(req.MealID)
+	if err != nil {
+		utils.ResponseError(w, http.StatusNotFound, "未找到指定的餐")
+		return
+	}
+
+	// 验证选餐时间
+	now := time.Now()
+	if now.Before(meal.SelectionStartTime) {
+		utils.ResponseError(w, http.StatusBadRequest, "选餐尚未开始，不能发送提醒")
+		return
+	}
+	if now.After(meal.SelectionEndTime) {
+		utils.ResponseError(w, http.StatusBadRequest, "选餐已结束，不能发送提醒")
+		return
+	}
+
+	// 获取所有学生
+	allStudents, err := models.GetAllStudents()
+	if err != nil {
+		utils.ResponseError(w, http.StatusInternalServerError, "获取学生列表失败")
+		return
+	}
+
+	// 获取该餐的选餐记录
+	selections, err := models.GetMealSelectionsByMeal(req.MealID)
+	if err != nil {
+		utils.ResponseError(w, http.StatusInternalServerError, "获取选餐记录失败")
+		return
+	}
+
+	// 创建已选餐学生ID的集合
+	selectedStudentIDs := make(map[int]bool)
+	for _, selection := range selections {
+		selectedStudentIDs[selection.StudentID] = true
+	}
+
+	// 找出未选餐的学生
+	var unselectedStudents []*models.Student
+	for _, student := range allStudents {
+		if !selectedStudentIDs[student.ID] {
+			unselectedStudents = append(unselectedStudents, student)
+		}
+	}
+
+	// 如果没有未选餐的学生，直接返回
+	if len(unselectedStudents) == 0 {
+		utils.ResponseOK(w, map[string]interface{}{
+			"success": true,
+			"message": "所有学生都已完成选餐",
+			"count":   0,
+		})
+		return
+	}
+
+	// 获取配置的域名
+	domain := config.Get().Website.Domain
+
+	// 构建钉钉通知消息
+	title := "选餐提醒"
+	markdown := fmt.Sprintf("## 选餐提醒\n\n# 亲爱的家长/同学，您尚未完成%s的选餐，请及时完成选餐。\n\n# 选餐截止时间为: %s**", meal.Name, meal.SelectionEndTime.Format("2006-01-02 15:04:05"))
+
+	card := utils.ActionCardMessage{
+		Title:       title,
+		Markdown:    markdown,
+		SingleTitle: "查看详情",
+		SingleURL:   fmt.Sprintf("%s/dingtalk_auth", domain),
+	}
+
+	// 收集所有钉钉ID（学生和家长）
+	dingTalkIDs := make([]string, 0)
+
+	// 启动goroutine异步处理，避免阻塞请求
+	go func() {
+		// 处理学生钉钉ID和家长钉钉ID
+		for _, student := range unselectedStudents {
+			// 添加学生钉钉ID
+			if student.DingTalkID != "" && student.DingTalkID != "0" {
+				dingTalkIDs = append(dingTalkIDs, student.DingTalkID)
+			}
+
+			// 获取并添加家长钉钉ID
+			parents, err := models.GetParentsByStudentID(student.ID)
+			if err != nil {
+				utils.LogError(fmt.Sprintf("获取学生ID=%d的家长信息失败: %v", student.ID, err))
+				continue
+			}
+
+			for _, parent := range parents {
+				if parent != "" && parent != "0" {
+					dingTalkIDs = append(dingTalkIDs, parent)
+				}
+			}
+		}
+
+		// 如果有需要通知的人
+		if len(dingTalkIDs) > 0 {
+			// 发送通知
+			err := utils.SendDingTalkActionCard(dingTalkIDs, card)
+			if err != nil {
+				utils.LogError(fmt.Sprintf("发送未选餐提醒失败: %v", err))
+			}
+		} else {
+			utils.LogError("没有找到需要通知的学生或家长")
+		}
+	}()
+
+	// 立即返回成功响应
+	utils.ResponseOK(w, map[string]interface{}{
+		"success": true,
+		"message": "未选餐提醒已开始发送",
+		"count":   len(unselectedStudents),
 	})
 }
