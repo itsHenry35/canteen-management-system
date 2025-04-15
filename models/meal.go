@@ -3,10 +3,13 @@ package models
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"os"
 	"time"
 
+	"github.com/itsHenry35/canteen-management-system/config"
 	"github.com/itsHenry35/canteen-management-system/database"
+	"github.com/itsHenry35/canteen-management-system/utils"
 )
 
 // Meal 餐模型
@@ -296,6 +299,107 @@ func validateMealTimes(mealID int, selectionStartTime, selectionEndTime, effecti
 	}
 	if count > 0 {
 		return errors.New("领餐时间区间与其他餐重叠")
+	}
+
+	return nil
+}
+
+// NotifyUnselectedStudentsByMealId 根据餐ID发送提醒给未选餐的学生
+func NotifyUnselectedStudentsByMealId(mealID int) error {
+	// 验证餐ID是否存在
+	meal, err := GetMealByID(mealID)
+	if err != nil {
+		return fmt.Errorf("未找到指定的餐: %v", err)
+	}
+
+	// 验证选餐时间
+	now := time.Now()
+	if now.Before(meal.SelectionStartTime) {
+		return fmt.Errorf("选餐尚未开始，不能发送提醒")
+	}
+	if now.After(meal.SelectionEndTime) {
+		return fmt.Errorf("选餐已结束，不能发送提醒")
+	}
+
+	// 获取所有学生
+	allStudents, err := GetAllStudents()
+	if err != nil {
+		return fmt.Errorf("获取学生列表失败: %v", err)
+	}
+
+	// 获取该餐的选餐记录
+	selections, err := GetMealSelectionsByMeal(mealID)
+	if err != nil {
+		return fmt.Errorf("获取选餐记录失败: %v", err)
+	}
+
+	// 创建已选餐学生ID的集合
+	selectedStudentIDs := make(map[int]bool)
+	for _, selection := range selections {
+		selectedStudentIDs[selection.StudentID] = true
+	}
+
+	// 找出未选餐的学生
+	var unselectedStudents []*Student
+	for _, student := range allStudents {
+		if !selectedStudentIDs[student.ID] {
+			unselectedStudents = append(unselectedStudents, student)
+		}
+	}
+
+	// 如果没有未选餐的学生，直接返回
+	if len(unselectedStudents) == 0 {
+		return nil
+	}
+
+	// 获取配置的域名
+	domain := config.Get().Website.Domain
+
+	// 构建钉钉通知消息
+	title := "选餐提醒"
+	markdown := fmt.Sprintf("## 选餐提醒\n\n# 亲爱的家长/同学，您尚未完成%s的选餐，请及时完成选餐。\n\n# 选餐截止时间为: %s",
+		meal.Name, meal.SelectionEndTime.Format("2006-01-02 15:04:05"))
+
+	card := utils.ActionCardMessage{
+		Title:       title,
+		Markdown:    markdown,
+		SingleTitle: "查看详情",
+		SingleURL:   fmt.Sprintf("%s/dingtalk_auth", domain),
+	}
+
+	// 收集所有钉钉ID（学生和家长）
+	dingTalkIDs := make([]string, 0)
+
+	// 处理学生钉钉ID和家长钉钉ID
+	for _, student := range unselectedStudents {
+		// 添加学生钉钉ID
+		if student.DingTalkID != "" && student.DingTalkID != "0" {
+			dingTalkIDs = append(dingTalkIDs, student.DingTalkID)
+		}
+
+		// 获取并添加家长钉钉ID
+		parents, err := GetParentsByStudentID(student.ID)
+		if err != nil {
+			utils.LogError(fmt.Sprintf("获取学生ID=%d的家长信息失败: %v", student.ID, err))
+			continue
+		}
+
+		for _, parent := range parents {
+			if parent != "" && parent != "0" {
+				dingTalkIDs = append(dingTalkIDs, parent)
+			}
+		}
+	}
+
+	// 如果有需要通知的人
+	if len(dingTalkIDs) > 0 {
+		// 发送通知
+		err := utils.SendDingTalkActionCard(dingTalkIDs, card)
+		if err != nil {
+			return fmt.Errorf("发送未选餐提醒失败: %v", err)
+		}
+	} else {
+		utils.LogError("没有找到需要通知的学生或家长")
 	}
 
 	return nil

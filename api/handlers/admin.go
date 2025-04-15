@@ -9,6 +9,7 @@ import (
 	"github.com/itsHenry35/canteen-management-system/api/middlewares"
 	"github.com/itsHenry35/canteen-management-system/config"
 	"github.com/itsHenry35/canteen-management-system/models"
+	"github.com/itsHenry35/canteen-management-system/scheduler"
 	"github.com/itsHenry35/canteen-management-system/utils"
 )
 
@@ -42,6 +43,11 @@ type UpdateSettingsRequest struct {
 		PublicSecBeian string `json:"public_sec_beian"`
 		Domain         string `json:"domain"`
 	} `json:"website"`
+	Scheduler struct {
+		Enabled                bool   `json:"enabled"`
+		CleanupTime            string `json:"cleanup_time"`
+		ReminderBeforeEndHours int    `json:"reminder_before_end_hours"`
+	} `json:"scheduler"`
 }
 
 // NotifyUnselectedStudentsRequest 提醒未选餐学生请求
@@ -238,6 +244,10 @@ func UpdateSettings(w http.ResponseWriter, r *http.Request) {
 	cfg.Website.ICPBeian = req.Website.ICPBeian
 	cfg.Website.PublicSecBeian = req.Website.PublicSecBeian
 	cfg.Website.Domain = req.Website.Domain
+	// 更新定时任务设置
+	cfg.Scheduler.Enabled = req.Scheduler.Enabled
+	cfg.Scheduler.CleanupTime = req.Scheduler.CleanupTime
+	cfg.Scheduler.ReminderBeforeEndHours = req.Scheduler.ReminderBeforeEndHours
 
 	// 保存配置
 	if err := config.Save(); err != nil {
@@ -247,4 +257,15 @@ func UpdateSettings(w http.ResponseWriter, r *http.Request) {
 
 	// 返回响应
 	utils.ResponseOK(w, cfg)
+}
+
+// GetSchedulerLogs 获取定时任务运行日志
+func GetSchedulerLogs(w http.ResponseWriter, r *http.Request) {
+	// 获取日志
+	logs := scheduler.GetLogs()
+
+	// 返回响应
+	utils.ResponseOK(w, map[string]interface{}{
+		"logs": logs,
+	})
 }

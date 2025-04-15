@@ -65,9 +65,12 @@ func SetupRouter() *mux.Router {
 	adminAPI.HandleFunc("/settings", handlers.GetSettings).Methods("GET")
 	adminAPI.HandleFunc("/settings", handlers.UpdateSettings).Methods("PUT")
 
+	// 定时任务日志
+	adminAPI.HandleFunc("/scheduler/logs", handlers.GetSchedulerLogs).Methods("GET")
+
 	// 危险API
 	adminAPI.HandleFunc("/rebuild-mapping", handlers.RebuildParentStudentMapping).Methods("POST")
-	// 添加获取重建映射日志的API
+	// 重建映射日志的API
 	adminAPI.HandleFunc("/rebuild-mapping/logs", handlers.GetMappingLogs).Methods("GET")
 
 	// 食堂工作人员API路由

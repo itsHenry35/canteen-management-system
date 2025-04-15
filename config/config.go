@@ -37,6 +37,11 @@ type Config struct {
 		PublicSecBeian string `json:"public_sec_beian"` // 公安部备案信息
 		Domain         string `json:"domain"`           // 网站域名，用于通知链接
 	} `json:"website"`
+	Scheduler struct {
+		Enabled                bool   `json:"enabled"`                   // 是否启用定时任务
+		CleanupTime            string `json:"cleanup_time"`              // 清理过期餐食的时间（格式：HH:MM）
+		ReminderBeforeEndHours int    `json:"reminder_before_end_hours"` // 选餐截止前多少小时发送提醒
+	} `json:"scheduler"`
 }
 
 // Load 加载配置文件
@@ -55,6 +60,9 @@ func Load() error {
 		config.Website.ICPBeian = ""                                                 // 默认空ICP备案信息
 		config.Website.PublicSecBeian = ""                                           // 默认空公安部备案信息
 		config.Website.Domain = ""                                                   // 默认域名
+		config.Scheduler.Enabled = false                                             // 默认关闭定时任务
+		config.Scheduler.CleanupTime = "02:00"                                       // 默认凌晨2点清理过期餐食
+		config.Scheduler.ReminderBeforeEndHours = 6                                  // 默认选餐截止前6小时发送提醒
 
 		// 检查配置文件是否存在
 		if _, statErr := os.Stat("config.json"); os.IsNotExist(statErr) {
