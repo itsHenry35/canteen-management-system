@@ -1,4 +1,3 @@
-// api/handlers/mapping.go
 package handlers
 
 import (
@@ -10,6 +9,12 @@ import (
 
 // RebuildParentStudentMapping 重建家长-学生映射关系
 func RebuildParentStudentMapping(w http.ResponseWriter, r *http.Request) {
+	// 检查是否已经在重建中
+	if services.IsRebuildingMapping() {
+		utils.ResponseError(w, http.StatusConflict, "家长-学生映射关系重建任务已在进行中，请等待完成")
+		return
+	}
+
 	// 启动一个 goroutine 来异步执行重建操作
 	go func() {
 		err := services.RebuildParentStudentMapping()
@@ -23,4 +28,18 @@ func RebuildParentStudentMapping(w http.ResponseWriter, r *http.Request) {
 	utils.ResponseOK(w, map[string]interface{}{
 		"message": "家长-学生映射关系重建任务已启动",
 	})
+}
+
+// GetMappingLogs 获取家长-学生映射关系重建的日志
+func GetMappingLogs(w http.ResponseWriter, r *http.Request) {
+	// 获取所有日志
+	logs := services.GetMappingLogs()
+
+	// 构造响应
+	response := map[string]interface{}{
+		"logs": logs,
+	}
+
+	// 返回响应
+	utils.ResponseOK(w, response)
 }

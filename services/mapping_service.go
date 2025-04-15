@@ -4,25 +4,106 @@ import (
 	"fmt"
 	"log"
 	"sync"
+	"time"
 
 	"github.com/itsHenry35/canteen-management-system/models"
 	"github.com/itsHenry35/canteen-management-system/utils"
 )
 
+// 添加全局变量以存储重建日志
+var (
+	mappingLogs     []string
+	mappingLogMutex sync.Mutex
+	isRebuilding    bool
+	rebuildingMutex sync.Mutex
+)
+
+// GetMappingLogs 获取重建家长-学生映射关系的日志
+func GetMappingLogs() []string {
+	mappingLogMutex.Lock()
+	defer mappingLogMutex.Unlock()
+
+	// 返回日志副本，而不是直接返回引用
+	logs := make([]string, len(mappingLogs))
+	copy(logs, mappingLogs)
+	return logs
+}
+
+// IsRebuildingMapping 检查是否正在重建映射关系
+func IsRebuildingMapping() bool {
+	rebuildingMutex.Lock()
+	defer rebuildingMutex.Unlock()
+	return isRebuilding
+}
+
+// 添加日志并保存
+func addMappingLog(message string) {
+	mappingLogMutex.Lock()
+	defer mappingLogMutex.Unlock()
+
+	// 添加时间戳
+	timestamp := time.Now().Format("2006-01-02 15:04:05")
+	logEntry := fmt.Sprintf("[%s] %s", timestamp, message)
+
+	// 添加到日志列表
+	mappingLogs = append(mappingLogs, logEntry)
+
+	// 同时输出到标准日志
+	log.Println(message)
+}
+
+// ClearMappingLogs 清除映射日志
+func ClearMappingLogs() {
+	mappingLogMutex.Lock()
+	defer mappingLogMutex.Unlock()
+
+	mappingLogs = []string{}
+}
+
 // RebuildParentStudentMapping 重建所有家长-学生映射关系
 func RebuildParentStudentMapping() error {
+	// 检查是否已经在重建
+	rebuildingMutex.Lock()
+	if isRebuilding {
+		rebuildingMutex.Unlock()
+		return fmt.Errorf("映射关系重建已在进行中，请等待完成")
+	}
+
+	// 设置重建状态为 true
+	isRebuilding = true
+	rebuildingMutex.Unlock()
+
+	// 清除之前的日志
+	ClearMappingLogs()
+
+	// 函数结束时复位状态
+	defer func() {
+		rebuildingMutex.Lock()
+		isRebuilding = false
+		rebuildingMutex.Unlock()
+	}()
+
+	// 记录开始
+	addMappingLog("开始重建家长-学生映射关系")
+
 	// 获取所有班级ID
 	classIDs, err := utils.GetAllClassIDs()
 	if err != nil {
-		return fmt.Errorf("获取班级列表失败: %v", err)
+		errMsg := fmt.Sprintf("获取班级列表失败: %v", err)
+		addMappingLog(errMsg)
+		return fmt.Errorf(errMsg)
 	}
+
+	addMappingLog(fmt.Sprintf("共获取到 %d 个班级需要处理", len(classIDs)))
 
 	// 清空现有的映射关系
 	if err := models.ClearAllParentStudentRelations(); err != nil {
-		return fmt.Errorf("清空映射关系失败: %v", err)
+		errMsg := fmt.Sprintf("清空映射关系失败: %v", err)
+		addMappingLog(errMsg)
+		return fmt.Errorf(errMsg)
 	}
 
-	log.Printf("开始重建家长-学生映射关系，共有 %d 个班级需要处理", len(classIDs))
+	addMappingLog("已清空现有映射关系")
 
 	// 使用等待组但有限制并发数
 	var wg sync.WaitGroup
@@ -44,9 +125,11 @@ func RebuildParentStudentMapping() error {
 			defer func() { <-semaphore }() // 释放并发槽
 
 			// 获取该班级所有的家长-学生关系
+			addMappingLog(fmt.Sprintf("正在处理班级 %s (%d/%d)", cid, index+1, len(classIDs)))
 			relations, err := utils.GetClassParentStudentRelations(cid)
 			if err != nil {
-				log.Printf("获取班级 %s 的关系失败: %v", cid, err)
+				errMsg := fmt.Sprintf("获取班级 %s 的关系失败: %v", cid, err)
+				addMappingLog(errMsg)
 				resultMutex.Lock()
 				failCount++
 				resultMutex.Unlock()
@@ -54,7 +137,7 @@ func RebuildParentStudentMapping() error {
 			}
 
 			if relations == nil || len(relations) == 0 {
-				log.Printf("班级 %s (%d/%d) 没有家长-学生关系", cid, index+1, len(classIDs))
+				addMappingLog(fmt.Sprintf("班级 %s (%d/%d) 没有家长-学生关系", cid, index+1, len(classIDs)))
 				return
 			}
 
@@ -63,12 +146,12 @@ func RebuildParentStudentMapping() error {
 
 			// 保存获取到的关系
 			for _, rel := range relations {
-
 				// 保存关系到数据库
 				err := models.SaveParentStudentRelation(rel.GuardianUserID, rel.StudentUserId)
 				if err != nil {
-					log.Printf("保存关系失败 (家长: %s, 学生: %d): %v",
+					errMsg := fmt.Sprintf("保存关系失败 (家长: %s, 学生: %s): %v",
 						rel.GuardianUserID, rel.StudentUserId, err)
+					addMappingLog(errMsg)
 				} else {
 					localRelationCount++
 				}
@@ -79,16 +162,18 @@ func RebuildParentStudentMapping() error {
 			relationCount += localRelationCount
 			resultMutex.Unlock()
 
-			log.Printf("班级 %s (%d/%d) 处理完成，保存了 %d 个关系",
-				cid, index+1, len(classIDs), localRelationCount)
+			addMappingLog(fmt.Sprintf("班级 %s (%d/%d) 处理完成，保存了 %d 个关系",
+				cid, index+1, len(classIDs), localRelationCount))
 		}(classID, i)
 	}
 
 	// 等待所有操作完成
 	wg.Wait()
 
-	log.Printf("家长-学生映射关系重建完成。成功: %d 班级, 失败: %d 班级, 共创建 %d 个关系",
+	// 总结日志
+	summaryMsg := fmt.Sprintf("家长-学生映射关系重建完成。成功: %d 班级, 失败: %d 班级, 共创建 %d 个关系",
 		successCount, failCount, relationCount)
+	addMappingLog(summaryMsg)
 
 	if failCount > 0 {
 		return fmt.Errorf("部分班级(%d/%d)处理失败", failCount, len(classIDs))

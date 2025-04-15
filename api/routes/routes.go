@@ -67,6 +67,8 @@ func SetupRouter() *mux.Router {
 
 	// 危险API
 	adminAPI.HandleFunc("/rebuild-mapping", handlers.RebuildParentStudentMapping).Methods("POST")
+	// 添加获取重建映射日志的API
+	adminAPI.HandleFunc("/rebuild-mapping/logs", handlers.GetMappingLogs).Methods("GET")
 
 	// 食堂工作人员API路由
 	canteenAPI := secured.PathPrefix("/canteen").Subrouter()
