@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -47,6 +48,9 @@ type UpdateSettingsRequest struct {
 		Enabled                bool   `json:"enabled"`
 		CleanupTime            string `json:"cleanup_time"`
 		ReminderBeforeEndHours int    `json:"reminder_before_end_hours"`
+		CleanupEnabled         bool   `json:"cleanup_enabled"`     // 新增
+		ReminderEnabled        bool   `json:"reminder_enabled"`    // 新增
+		AutoSelectEnabled      bool   `json:"auto_select_enabled"` // 新增
 	} `json:"scheduler"`
 }
 
@@ -234,6 +238,14 @@ func UpdateSettings(w http.ResponseWriter, r *http.Request) {
 	// 获取配置
 	cfg := config.Get()
 
+	// 记录原有的调度器状态
+	oldSchedulerEnabled := cfg.Scheduler.Enabled
+	oldCleanupEnabled := cfg.Scheduler.CleanupEnabled
+	oldReminderEnabled := cfg.Scheduler.ReminderEnabled
+	oldAutoSelectEnabled := cfg.Scheduler.AutoSelectEnabled
+	oldCleanupTime := cfg.Scheduler.CleanupTime
+	oldReminderBeforeEndHours := cfg.Scheduler.ReminderBeforeEndHours
+
 	// 更新钉钉设置
 	cfg.DingTalk.AppKey = req.DingTalk.AppKey
 	cfg.DingTalk.AppSecret = req.DingTalk.AppSecret
@@ -246,6 +258,9 @@ func UpdateSettings(w http.ResponseWriter, r *http.Request) {
 	cfg.Website.Domain = req.Website.Domain
 	// 更新定时任务设置
 	cfg.Scheduler.Enabled = req.Scheduler.Enabled
+	cfg.Scheduler.CleanupEnabled = req.Scheduler.CleanupEnabled
+	cfg.Scheduler.ReminderEnabled = req.Scheduler.ReminderEnabled
+	cfg.Scheduler.AutoSelectEnabled = req.Scheduler.AutoSelectEnabled
 	cfg.Scheduler.CleanupTime = req.Scheduler.CleanupTime
 	cfg.Scheduler.ReminderBeforeEndHours = req.Scheduler.ReminderBeforeEndHours
 
@@ -253,6 +268,21 @@ func UpdateSettings(w http.ResponseWriter, r *http.Request) {
 	if err := config.Save(); err != nil {
 		utils.ResponseError(w, http.StatusInternalServerError, "failed to save settings")
 		return
+	}
+
+	// 检查调度器设置是否有变更，如果有则重载定时任务
+	schedulerChanged := oldSchedulerEnabled != cfg.Scheduler.Enabled ||
+		oldCleanupEnabled != cfg.Scheduler.CleanupEnabled ||
+		oldReminderEnabled != cfg.Scheduler.ReminderEnabled ||
+		oldAutoSelectEnabled != cfg.Scheduler.AutoSelectEnabled ||
+		oldCleanupTime != cfg.Scheduler.CleanupTime ||
+		oldReminderBeforeEndHours != cfg.Scheduler.ReminderBeforeEndHours
+
+	if schedulerChanged {
+		if err := scheduler.ReloadTasks(); err != nil {
+			log.Printf("重载定时任务失败: %v", err)
+			// 不要因为重载失败而中断请求
+		}
 	}
 
 	// 返回响应

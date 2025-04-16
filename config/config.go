@@ -38,9 +38,12 @@ type Config struct {
 		Domain         string `json:"domain"`           // 网站域名，用于通知链接
 	} `json:"website"`
 	Scheduler struct {
-		Enabled                bool   `json:"enabled"`                   // 是否启用定时任务
+		Enabled                bool   `json:"enabled"`                   // 总开关
 		CleanupTime            string `json:"cleanup_time"`              // 清理过期餐食的时间（格式：HH:MM）
 		ReminderBeforeEndHours int    `json:"reminder_before_end_hours"` // 选餐截止前多少小时发送提醒
+		CleanupEnabled         bool   `json:"cleanup_enabled"`           // 是否启用清理过期餐食任务
+		ReminderEnabled        bool   `json:"reminder_enabled"`          // 是否启用选餐提醒任务
+		AutoSelectEnabled      bool   `json:"auto_select_enabled"`       // 是否启用自动选餐任务
 	} `json:"scheduler"`
 }
 
@@ -63,6 +66,9 @@ func Load() error {
 		config.Scheduler.Enabled = false                                             // 默认关闭定时任务
 		config.Scheduler.CleanupTime = "02:00"                                       // 默认凌晨2点清理过期餐食
 		config.Scheduler.ReminderBeforeEndHours = 6                                  // 默认选餐截止前6小时发送提醒
+		config.Scheduler.CleanupEnabled = true                                       // 默认启用清理过期餐食任务
+		config.Scheduler.ReminderEnabled = true                                      // 默认启用选餐提醒任务
+		config.Scheduler.AutoSelectEnabled = false                                   // 默认关闭自动选餐任务
 
 		// 检查配置文件是否存在
 		if _, statErr := os.Stat("config.json"); os.IsNotExist(statErr) {

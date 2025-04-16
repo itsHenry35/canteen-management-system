@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -13,6 +14,7 @@ import (
 	"github.com/itsHenry35/canteen-management-system/api/middlewares"
 	"github.com/itsHenry35/canteen-management-system/config"
 	"github.com/itsHenry35/canteen-management-system/models"
+	"github.com/itsHenry35/canteen-management-system/scheduler"
 	"github.com/itsHenry35/canteen-management-system/utils"
 )
 
@@ -115,6 +117,12 @@ func CreateMeal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 更新自动选餐任务
+	if err := scheduler.CheckAndUpdateTasks(); err != nil {
+		log.Printf("更新自动选餐任务失败: %v", err)
+		// 不要因为更新任务失败而中断请求
+	}
+
 	// 返回响应
 	utils.ResponseOK(w, meal)
 }
@@ -187,6 +195,12 @@ func UpdateMeal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 更新自动选餐任务
+	if err := scheduler.CheckAndUpdateTasks(); err != nil {
+		log.Printf("更新自动选餐任务失败: %v", err)
+		// 不要因为更新任务失败而中断请求
+	}
+
 	// 返回响应
 	utils.ResponseOK(w, meal)
 }
@@ -205,6 +219,12 @@ func DeleteMeal(w http.ResponseWriter, r *http.Request) {
 	if err := models.DeleteMeal(id); err != nil {
 		utils.ResponseError(w, http.StatusInternalServerError, "删除餐失败")
 		return
+	}
+
+	// 更新自动选餐任务
+	if err := scheduler.CheckAndUpdateTasks(); err != nil {
+		log.Printf("更新自动选餐任务失败: %v", err)
+		// 不要因为更新任务失败而中断请求
 	}
 
 	// 返回响应

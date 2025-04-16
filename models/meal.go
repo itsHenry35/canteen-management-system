@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"math/rand"
 	"os"
 	"time"
 
@@ -403,4 +404,62 @@ func NotifyUnselectedStudentsByMealId(mealID int) error {
 	}
 
 	return nil
+}
+
+// BatchSelectMealsRandomly 随机批量选餐（将未选餐学生随机分为A餐和B餐）
+func BatchSelectMealsRandomly(mealID int) (int, error) {
+	// 获取所有学生
+	allStudents, err := GetAllStudents()
+	if err != nil {
+		return 0, fmt.Errorf("获取学生列表失败: %v", err)
+	}
+
+	// 获取该餐的选餐记录
+	selections, err := GetMealSelectionsByMeal(mealID)
+	if err != nil {
+		return 0, fmt.Errorf("获取选餐记录失败: %v", err)
+	}
+
+	// 创建已选餐学生ID的集合
+	selectedStudentIDs := make(map[int]bool)
+	for _, selection := range selections {
+		selectedStudentIDs[selection.StudentID] = true
+	}
+
+	// 找出未选餐的学生
+	var unselectedStudentIDs []int
+	for _, student := range allStudents {
+		if !selectedStudentIDs[student.ID] {
+			unselectedStudentIDs = append(unselectedStudentIDs, student.ID)
+		}
+	}
+
+	// 如果没有未选餐的学生，直接返回
+	if len(unselectedStudentIDs) == 0 {
+		return 0, nil
+	}
+
+	// 将未选餐学生随机分为A餐和B餐组
+	rand.Seed(time.Now().UnixNano())
+	rand.Shuffle(len(unselectedStudentIDs), func(i, j int) {
+		unselectedStudentIDs[i], unselectedStudentIDs[j] = unselectedStudentIDs[j], unselectedStudentIDs[i]
+	})
+
+	midPoint := len(unselectedStudentIDs) / 2
+	groupA := unselectedStudentIDs[:midPoint]
+	groupB := unselectedStudentIDs[midPoint:]
+
+	// 批量选A餐
+	countA, err := BatchSelectMeals(groupA, mealID, MealTypeA)
+	if err != nil {
+		return 0, fmt.Errorf("为A组学生批量选餐失败: %v", err)
+	}
+
+	// 批量选B餐
+	countB, err := BatchSelectMeals(groupB, mealID, MealTypeB)
+	if err != nil {
+		return countA, fmt.Errorf("为B组学生批量选餐失败: %v", err)
+	}
+
+	return countA + countB, nil
 }
