@@ -91,6 +91,9 @@ func SetupRouter() *mux.Router {
 	studentAPI.HandleFunc("/selection/current", handlers.GetStudentCurrentSelection).Methods("GET")
 
 	// 静态文件服务
+	r.HandleFunc("/robots.txt", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "./static/robots.txt")
+	}).Methods("GET")
 	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
 
 	// 所有其他请求都指向前端入口点
