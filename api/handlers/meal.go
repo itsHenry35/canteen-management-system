@@ -95,7 +95,7 @@ func CreateMeal(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 确保图片目录存在
-	mealImgDir := "./static/images/meals"
+	mealImgDir := "./data/images"
 	if err := os.MkdirAll(mealImgDir, 0755); err != nil {
 		utils.ResponseError(w, http.StatusInternalServerError, "创建目录失败")
 		return
@@ -108,7 +108,7 @@ func CreateMeal(w http.ResponseWriter, r *http.Request) {
 		utils.ResponseError(w, http.StatusBadRequest, "保存图片失败")
 		return
 	}
-	imgPath := filepath.Join("/static/images/meals", imgFileName)
+	imgPath := filepath.Join("/static/images", imgFileName)
 
 	// 创建餐
 	meal, err := models.CreateMeal(req.Name, req.SelectionStartTime, req.SelectionEndTime, req.EffectiveStartDate, req.EffectiveEndDate, imgPath)
@@ -160,7 +160,7 @@ func UpdateMeal(w http.ResponseWriter, r *http.Request) {
 	// 如果提供了新图片，则更新图片
 	if req.Image != "" {
 		// 确保图片目录存在
-		mealImgDir := "./static/images/meals"
+		mealImgDir := "./data/images"
 		if err := os.MkdirAll(mealImgDir, 0755); err != nil {
 			utils.ResponseError(w, http.StatusInternalServerError, "创建目录失败")
 			return
@@ -173,7 +173,7 @@ func UpdateMeal(w http.ResponseWriter, r *http.Request) {
 			utils.ResponseError(w, http.StatusBadRequest, "保存图片失败")
 			return
 		}
-		newImgPath := filepath.Join("/static/images/meals", imgFileName)
+		newImgPath := filepath.Join("/static/images", imgFileName)
 
 		// 删除旧图片
 		if meal.ImagePath != "" {

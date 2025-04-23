@@ -1,7 +1,10 @@
 package routes
 
 import (
+	"io"
+	"io/fs"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/itsHenry35/canteen-management-system/api/handlers"
@@ -9,8 +12,20 @@ import (
 	"github.com/itsHenry35/canteen-management-system/services"
 )
 
+func getStaticFSHandler(staticFS fs.FS, path string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		content, err := staticFS.Open(path)
+		if err != nil {
+			http.Error(w, "Not found", http.StatusNotFound)
+			return
+		}
+		defer content.Close()
+		http.ServeContent(w, r, path, time.Time{}, content.(io.ReadSeeker))
+	}
+}
+
 // SetupRouter 设置路由
-func SetupRouter() *mux.Router {
+func SetupRouter(staticFS fs.FS) *mux.Router {
 	r := mux.NewRouter()
 
 	// 应用日志中间件
@@ -91,15 +106,12 @@ func SetupRouter() *mux.Router {
 	studentAPI.HandleFunc("/selection/current", handlers.GetStudentCurrentSelection).Methods("GET")
 
 	// 静态文件服务
-	r.HandleFunc("/robots.txt", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "./static/robots.txt")
-	}).Methods("GET")
-	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
+	r.HandleFunc("/robots.txt", getStaticFSHandler(staticFS, "robots.txt")).Methods("GET")
+	r.PathPrefix("/static/images/").Handler(http.StripPrefix("/static/images/", http.FileServer(http.Dir("./data/images"))))
+	r.PathPrefix("/static/").Handler(http.FileServer(http.FS(staticFS)))
 
 	// 所有其他请求都指向前端入口点
-	r.PathPrefix("/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "./static/index.html")
-	})
+	r.PathPrefix("/").HandlerFunc(getStaticFSHandler(staticFS, "index.html")).Methods("GET")
 
 	return r
 }
