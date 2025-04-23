@@ -106,7 +106,20 @@ func SetupRouter(staticFS fs.FS) *mux.Router {
 	studentAPI.HandleFunc("/selection/current", handlers.GetStudentCurrentSelection).Methods("GET")
 
 	// 静态文件服务
-	r.HandleFunc("/robots.txt", getStaticFSHandler(staticFS, "robots.txt")).Methods("GET")
+	rootStaticFiles := []string{
+		"robots.txt",
+		"favicon.svg",
+		"manifest.json",
+		"logo192.png",
+		"logo512.png",
+		"asset-manifest.json",
+		"apple-touch-icon.png",
+	}
+
+	// 为每个静态文件注册路由
+	for _, file := range rootStaticFiles {
+		r.HandleFunc("/"+file, getStaticFSHandler(staticFS, file)).Methods("GET")
+	}
 	r.PathPrefix("/static/images/").Handler(http.StripPrefix("/static/images/", http.FileServer(http.Dir("./data/images"))))
 	r.PathPrefix("/static/").Handler(http.FileServer(http.FS(staticFS)))
 
