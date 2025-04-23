@@ -89,9 +89,6 @@ cp canteen-management-system /path/to/deployment/
 # 复制前端构建文件到部署目录
 cp -r canteen-management-system-frontend/build/* /path/to/deployment/frontend/
 
-# 复制数据库迁移文件
-cp canteen-management-system/database-migrations-schema.sql /path/to/deployment/database/migrations/
-
 # 运行系统（初始管理员账号和密码将在终端中显示）
 cd /path/to/deployment
 ./canteen-management-system
@@ -137,10 +134,6 @@ cd /path/to/deployment
 ```bash
 # 克隆安卓客户端仓库
 git clone https://github.com/itsHenry35/CanteenClient
-
-# 修改API基础URL
-# 打开 app/src/main/java/com/itshenry/canteenclient/api/RetrofitClient.kt
-# 将 BASE_URL 修改为你的域名
 
 # 使用Android Studio打开项目进行编译
 # 将编译好的APK文件分发给食堂工作人员使用的设备

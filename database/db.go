@@ -2,6 +2,7 @@ package database
 
 import (
 	"database/sql"
+	"embed"
 	"fmt"
 	"log"
 	"os"
@@ -12,6 +13,9 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"golang.org/x/crypto/bcrypt"
 )
+
+//go:embed migrations/schema.sql
+var schemaFS embed.FS
 
 var db *sql.DB
 
@@ -129,8 +133,8 @@ func Close() error {
 
 // createTables 创建数据库表
 func createTables() error {
-	// 读取 schema.sql 文件
-	schemaSQL, err := os.ReadFile("database/migrations/schema.sql")
+	// 从嵌入的文件系统读取 schema.sql 文件
+	schemaSQL, err := schemaFS.ReadFile("migrations/schema.sql")
 	if err != nil {
 		return fmt.Errorf("failed to read schema file: %v", err)
 	}
