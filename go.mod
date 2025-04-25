@@ -8,5 +8,5 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.24
 	github.com/mozillazg/go-pinyin v0.20.0
 	github.com/robfig/cron/v3 v3.0.1
-	golang.org/x/crypto v0.36.0
+	golang.org/x/crypto v0.37.0
 )
