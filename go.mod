@@ -1,6 +1,6 @@
 module github.com/itsHenry35/canteen-management-system
 
-go 1.23.5
+go 1.24.2
 
 require (
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
