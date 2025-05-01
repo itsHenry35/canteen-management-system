@@ -7,7 +7,9 @@ import (
 	"log"
 	"time"
 
+	"github.com/itsHenry35/canteen-management-system/config"
 	"github.com/itsHenry35/canteen-management-system/database"
+	"github.com/itsHenry35/canteen-management-system/utils"
 )
 
 // MealSelection 学生选餐记录
@@ -21,7 +23,7 @@ type MealSelection struct {
 }
 
 // CreateMealSelection 创建学生选餐记录
-func CreateMealSelection(studentID, mealID int, mealType MealType) (*MealSelection, error) {
+func CreateMealSelection(studentID, mealID int, mealType MealType, validateMealTime bool) (*MealSelection, error) {
 	// 获取数据库连接
 	db := database.GetDB()
 
@@ -38,9 +40,12 @@ func CreateMealSelection(studentID, mealID int, mealType MealType) (*MealSelecti
 	}
 
 	// 验证是否在选餐时间范围内
-	now := time.Now()
-	if now.Before(meal.SelectionStartTime) || now.After(meal.SelectionEndTime) {
-		return nil, errors.New("不在选餐时间范围内")
+	if validateMealTime {
+		// 获取当前时间
+		now := time.Now()
+		if now.Before(meal.SelectionStartTime) || now.After(meal.SelectionEndTime) {
+			return nil, errors.New("不在选餐时间范围内")
+		}
 	}
 
 	// 最大重试次数
@@ -258,7 +263,7 @@ func BatchSelectMeals(studentIDs []int, mealID int, mealType MealType) (int, err
 	db := database.GetDB()
 
 	// 验证餐ID是否存在
-	_, err := GetMealByID(mealID)
+	meal, err := GetMealByID(mealID)
 	if err != nil {
 		return 0, err
 	}
@@ -266,6 +271,7 @@ func BatchSelectMeals(studentIDs []int, mealID int, mealType MealType) (int, err
 	// 最大重试次数
 	maxRetries := 3
 	var lastErr error
+	var count int
 
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		// 如果不是第一次尝试，等待一段时间再重试
@@ -291,7 +297,7 @@ func BatchSelectMeals(studentIDs []int, mealID int, mealType MealType) (int, err
 		}
 
 		// 计数器
-		var count int
+		count = 0
 
 		// 处理每个学生
 		for _, studentID := range studentIDs {
@@ -331,6 +337,74 @@ func BatchSelectMeals(studentIDs []int, mealID int, mealType MealType) (int, err
 		if err := tx.Commit(); err != nil {
 			lastErr = err
 			continue
+		}
+
+		// 如果成功批量选餐且有记录被处理，发送钉钉通知
+		if count > 0 {
+			// 启动goroutine异步发送通知
+			go func() {
+				// 收集所有相关人员的钉钉ID
+				dingTalkIDs := make([]string, 0)
+
+				for _, studentID := range studentIDs {
+					student, err := GetStudentByID(studentID)
+					if err != nil {
+						utils.LogError(fmt.Sprintf("获取学生信息失败, ID=%d: %v", studentID, err))
+						continue
+					}
+
+					// 收集学生钉钉ID
+					if student.DingTalkID != "" && student.DingTalkID != "0" {
+						dingTalkIDs = append(dingTalkIDs, student.DingTalkID)
+					}
+
+					// 获取并收集家长钉钉ID
+					parents, err := GetParentsByStudentID(student.ID)
+					if err != nil {
+						utils.LogError(fmt.Sprintf("获取学生ID=%d的家长信息失败: %v", student.ID, err))
+						continue
+					}
+
+					for _, parent := range parents {
+						if parent != "" && parent != "0" {
+							dingTalkIDs = append(dingTalkIDs, parent)
+						}
+					}
+				}
+
+				// 如果没有需要通知的人，直接返回
+				if len(dingTalkIDs) == 0 {
+					utils.LogError("没有找到需要通知的学生或家长")
+					return
+				}
+
+				// 获取配置的域名
+				domain := config.Get().Website.Domain
+
+				// 构建通知消息
+				title := "选餐提醒"
+				var mealTypeStr string
+				if mealType == MealTypeA {
+					mealTypeStr = "A餐"
+				} else {
+					mealTypeStr = "B餐"
+				}
+
+				markdown := fmt.Sprintf("## 选餐通知\n\n# 亲爱的家长/同学，您的餐食：%s已由管理员代选为%s，详情请查看选餐系统。", meal.Name, mealTypeStr)
+
+				card := utils.ActionCardMessage{
+					Title:       title,
+					Markdown:    markdown,
+					SingleTitle: "查看详情",
+					SingleURL:   fmt.Sprintf("%s/dingtalk_auth", domain),
+				}
+
+				// 发送通知
+				err = utils.SendDingTalkActionCard(dingTalkIDs, card)
+				if err != nil {
+					utils.LogError(fmt.Sprintf("发送批量选餐通知失败: %v", err))
+				}
+			}()
 		}
 
 		// 成功完成，返回处理的记录数

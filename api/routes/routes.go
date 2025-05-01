@@ -75,6 +75,7 @@ func SetupRouter(staticFS fs.FS) *mux.Router {
 	adminAPI.HandleFunc("/selections", handlers.GetStudentSelections).Methods("GET")
 	adminAPI.HandleFunc("/selections/batch", handlers.BatchSelectMeals).Methods("POST")
 	adminAPI.HandleFunc("/notify/unselected", handlers.NotifyUnselectedStudents).Methods("POST")
+	adminAPI.HandleFunc("/selections/import", handlers.ImportSelection).Methods("POST")
 
 	// 系统设置
 	adminAPI.HandleFunc("/settings", handlers.GetSettings).Methods("GET")

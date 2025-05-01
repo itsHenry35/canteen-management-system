@@ -37,6 +37,11 @@ func GetDingTalkToken() (string, error) {
 	appKey := cfg.DingTalk.AppKey
 	appSecret := cfg.DingTalk.AppSecret
 
+	// 检查配置是否完整
+	if appKey == "" || appSecret == "" {
+		return "", fmt.Errorf("钉钉配置不完整")
+	}
+
 	// 请求URL
 	url := fmt.Sprintf("https://oapi.dingtalk.com/gettoken?appkey=%s&appsecret=%s", appKey, appSecret)
 

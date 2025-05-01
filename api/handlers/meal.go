@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -12,7 +11,6 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/itsHenry35/canteen-management-system/api/middlewares"
-	"github.com/itsHenry35/canteen-management-system/config"
 	"github.com/itsHenry35/canteen-management-system/models"
 	"github.com/itsHenry35/canteen-management-system/scheduler"
 	"github.com/itsHenry35/canteen-management-system/utils"
@@ -312,7 +310,7 @@ func StudentSelectMeal(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 创建选餐记录
-	selection, err := models.CreateMealSelection(studentID, req.MealID, req.MealType)
+	selection, err := models.CreateMealSelection(studentID, req.MealID, req.MealType, true)
 	if err != nil {
 		utils.ResponseError(w, http.StatusInternalServerError, "选餐失败: "+err.Error())
 		return
@@ -337,13 +335,6 @@ func BatchSelectMeals(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 获取餐信息
-	meal, err := models.GetMealByID(req.MealID)
-	if err != nil {
-		utils.ResponseError(w, http.StatusNotFound, "未找到餐")
-		return
-	}
-
 	// 批量选餐
 	count, err := models.BatchSelectMeals(req.StudentIDs, req.MealID, req.MealType)
 	if err != nil {
@@ -351,78 +342,97 @@ func BatchSelectMeals(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 如果成功批量选餐，发送钉钉通知
-	if count > 0 {
-		// 启动goroutine异步发送通知
-		go func() {
-			// 收集所有相关人员的钉钉ID
-			dingTalkIDs := make([]string, 0)
+	// 返回响应
+	utils.ResponseOK(w, map[string]interface{}{
+		"success": true,
+		"count":   count,
+	})
+}
 
-			for _, studentID := range req.StudentIDs {
-				student, err := models.GetStudentByID(studentID)
-				if err != nil {
-					utils.LogError(fmt.Sprintf("获取学生信息失败, ID=%d: %v", studentID, err))
-					continue
-				}
+// ImportSelectionRequest 导入选餐请求
+type ImportSelectionRequest struct {
+	Method   string          `json:"method"` // student_id 或 dingtalk_id
+	ID       string          `json:"id"`
+	MealType models.MealType `json:"meal_type"`
+	MealID   int             `json:"meal_id"`
+}
 
-				// 收集学生钉钉ID
-				if student.DingTalkID != "" && student.DingTalkID != "0" {
-					dingTalkIDs = append(dingTalkIDs, student.DingTalkID)
-				}
+// ImportSelection 导入选餐
+func ImportSelection(w http.ResponseWriter, r *http.Request) {
+	// 解析请求
+	var req ImportSelectionRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.ResponseError(w, http.StatusBadRequest, "无效的请求")
+		return
+	}
 
-				// 获取并收集家长钉钉ID
-				parents, err := models.GetParentsByStudentID(student.ID)
-				if err != nil {
-					utils.LogError(fmt.Sprintf("获取学生ID=%d的家长信息失败: %v", student.ID, err))
-					continue
-				}
+	// 验证餐食类型
+	if req.MealType != models.MealTypeA && req.MealType != models.MealTypeB {
+		utils.ResponseError(w, http.StatusBadRequest, "无效的餐食类型")
+		return
+	}
 
-				for _, parent := range parents {
-					if parent != "" && parent != "0" {
-						dingTalkIDs = append(dingTalkIDs, parent)
-					}
-				}
-			}
+	// 验证请求方法
+	if req.Method != "student_id" && req.Method != "dingtalk_id" {
+		utils.ResponseError(w, http.StatusBadRequest, "无效的方法，必须为 student_id 或 dingtalk_id")
+		return
+	}
 
-			// 如果没有需要通知的人，直接返回
-			if len(dingTalkIDs) == 0 {
-				utils.LogError("没有找到需要通知的学生或家长")
+	// 根据方法确定目标学生ID
+	var studentID int
+	var err error
+
+	if req.Method == "student_id" {
+		// 直接从请求获取学生ID
+		studentID, err = strconv.Atoi(req.ID)
+		if err != nil {
+			utils.ResponseError(w, http.StatusBadRequest, "无效的学生ID")
+			return
+		}
+
+		// 验证学生是否存在
+		student, err := models.GetStudentByID(studentID)
+		if err != nil {
+			utils.ResponseError(w, http.StatusNotFound, "未找到学生")
+			return
+		}
+
+		// 使用验证过的学生ID
+		studentID = student.ID
+	} else {
+		// 使用钉钉ID查找学生
+		student, err := models.GetStudentByDingTalkID(req.ID)
+		if err != nil {
+			// 如果学生未找到，可能是家长的钉钉ID，尝试查找关联学生
+			parents, err := models.GetStudentsByParentID(req.ID)
+			if err != nil || len(parents) == 0 {
+				utils.ResponseError(w, http.StatusNotFound, "未找到与该钉钉ID关联的学生")
 				return
 			}
 
-			// 获取配置的域名
-			domain := config.Get().Website.Domain
-
-			// 构建通知消息
-			title := "选餐提醒"
-			var mealTypeStr string
-			if req.MealType == models.MealTypeA {
-				mealTypeStr = "A餐"
-			} else {
-				mealTypeStr = "B餐"
-			}
-
-			markdown := fmt.Sprintf("## 选餐通知\n\n# 亲爱的家长/同学，您的餐食：%s已由管理员代选为%s，详情请查看选餐系统。", meal.Name, mealTypeStr)
-
-			card := utils.ActionCardMessage{
-				Title:       title,
-				Markdown:    markdown,
-				SingleTitle: "查看详情",
-				SingleURL:   fmt.Sprintf("%s/dingtalk_auth", domain),
-			}
-
-			// 发送通知
-			err = utils.SendDingTalkActionCard(dingTalkIDs, card)
+			// 使用第一个关联学生的ID
+			student, err := models.GetStudentByDingTalkID(parents[0].StudentID)
 			if err != nil {
-				utils.LogError(fmt.Sprintf("发送批量选餐通知失败: %v", err))
+				utils.ResponseError(w, http.StatusNotFound, "未找到学生")
+				return
 			}
-		}()
+			studentID = student.ID
+		} else {
+			studentID = student.ID
+		}
+	}
+
+	// 创建选餐记录
+	_, err = models.CreateMealSelection(studentID, req.MealID, req.MealType, false)
+	if err != nil {
+		utils.ResponseError(w, http.StatusInternalServerError, "选餐失败: "+err.Error())
+		return
 	}
 
 	// 返回响应
 	utils.ResponseOK(w, map[string]interface{}{
 		"success": true,
-		"count":   count,
+		"message": "导入选餐成功",
 	})
 }
 
