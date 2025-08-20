@@ -86,29 +86,27 @@ func DecryptData(encryptedData string) (string, error) {
 }
 
 // GenerateQRCodeData 生成学生二维码数据
-func GenerateQRCodeData(studentID int, fullName string) (string, error) {
-	// 组合数据
-	data := fmt.Sprintf("student:%d:%s", studentID, fullName)
-
+func GenerateQRCodeData(studentID int) (string, error) {
+	// 转换字符串
+	data := fmt.Sprintf("%d", studentID)
 	// 加密数据
 	return EncryptData(data)
 }
 
 // ValidateQRCodeData 验证学生二维码数据
-func ValidateQRCodeData(encryptedData string) (int, string, error) {
+func ValidateQRCodeData(encryptedData string) (int, error) {
 	// 解密数据
 	data, err := DecryptData(encryptedData)
 	if err != nil {
-		return 0, "", err
+		return 0, err
 	}
 
 	// 解析数据
 	var studentID int
-	var fullName string
-	_, err = fmt.Sscanf(data, "student:%d:%s", &studentID, &fullName)
+	_, err = fmt.Sscanf(data, "%d", &studentID)
 	if err != nil {
-		return 0, "", errors.New("invalid QR code data")
+		return 0, errors.New("invalid QR code data")
 	}
 
-	return studentID, fullName, nil
+	return studentID, nil
 }

@@ -161,7 +161,7 @@ func GetStudentQRCodeData(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 生成加密的二维码数据
-	qrData, err := utils.GenerateQRCodeData(student.ID, student.FullName)
+	qrData, err := utils.GenerateQRCodeData(student.ID)
 	if err != nil {
 		utils.ResponseError(w, http.StatusInternalServerError, "生成二维码数据失败")
 		return

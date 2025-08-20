@@ -55,7 +55,7 @@ func ScanStudentQRCode(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 解密二维码数据
-	studentID, fullName, err := utils.ValidateQRCodeData(req.QRData)
+	studentID, err := utils.ValidateQRCodeData(req.QRData)
 	if err != nil {
 		utils.ResponseError(w, http.StatusBadRequest, "无效的二维码数据")
 		return
@@ -65,12 +65,6 @@ func ScanStudentQRCode(w http.ResponseWriter, r *http.Request) {
 	student, err := models.GetStudentByID(studentID)
 	if err != nil {
 		utils.ResponseError(w, http.StatusNotFound, "未找到学生")
-		return
-	}
-
-	// 验证学生姓名
-	if student.FullName != fullName {
-		utils.ResponseError(w, http.StatusBadRequest, "学生信息不匹配")
 		return
 	}
 
