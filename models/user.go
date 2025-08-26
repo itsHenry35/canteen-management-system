@@ -92,7 +92,7 @@ func GetUserByID(id int) (*User, error) {
 	)
 
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, errors.New("系统中未找到用户")
 		}
 		return nil, err
@@ -122,7 +122,7 @@ func GetUserByUsername(username string) (*User, error) {
 	)
 
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, errors.New("系统中未找到用户")
 		}
 		return nil, err
@@ -152,7 +152,7 @@ func GetUserByDingTalkID(dingTalkID string) (*User, error) {
 	)
 
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, errors.New("系统中未找到用户")
 		}
 		return nil, err

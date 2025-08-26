@@ -158,7 +158,7 @@ func GetMealSelectionByStudentAndMeal(studentID, mealID int) (*MealSelection, er
 	)
 
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil // 返回nil表示没有记录
 		}
 		return nil, err
@@ -430,7 +430,7 @@ func GetStudentCurrentSelection(studentID int) (*MealSelection, error) {
 	).Scan(&mealID)
 
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil // 返回nil表示今天没有有效的餐
 		}
 		return nil, err

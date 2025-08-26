@@ -218,7 +218,7 @@ func DeleteUser(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetSettings 获取系统设置
-func GetSettings(w http.ResponseWriter, r *http.Request) {
+func GetSettings(w http.ResponseWriter, _ *http.Request) {
 	// 获取配置
 	cfg := config.Get()
 
@@ -290,7 +290,7 @@ func UpdateSettings(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetSchedulerLogs 获取定时任务运行日志
-func GetSchedulerLogs(w http.ResponseWriter, r *http.Request) {
+func GetSchedulerLogs(w http.ResponseWriter, _ *http.Request) {
 	// 获取日志
 	logs := scheduler.GetLogs()
 

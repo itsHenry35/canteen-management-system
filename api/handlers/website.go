@@ -17,7 +17,7 @@ type WebsiteInfoResponse struct {
 }
 
 // GetWebsiteInfo 获取网站信息
-func GetWebsiteInfo(w http.ResponseWriter, r *http.Request) {
+func GetWebsiteInfo(w http.ResponseWriter, _ *http.Request) {
 	// 获取配置
 	cfg := config.Get()
 

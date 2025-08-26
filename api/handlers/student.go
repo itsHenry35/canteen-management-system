@@ -26,7 +26,7 @@ type UpdateStudentRequest struct {
 }
 
 // GetAllStudents 获取所有学生
-func GetAllStudents(w http.ResponseWriter, r *http.Request) {
+func GetAllStudents(w http.ResponseWriter, _ *http.Request) {
 	// 获取学生列表
 	students, err := models.GetAllStudents()
 	if err != nil {
@@ -263,7 +263,7 @@ func GetStudentMealSelections(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetStudentSelections 获取所有学生选餐统计
-func GetStudentSelections(w http.ResponseWriter, r *http.Request) {
+func GetStudentSelections(w http.ResponseWriter, _ *http.Request) {
 	// 获取所有学生
 	students, err := models.GetAllStudents()
 	if err != nil {

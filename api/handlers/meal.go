@@ -50,7 +50,7 @@ type BatchMealSelectionRequest struct {
 }
 
 // GetAllMeals 获取所有餐
-func GetAllMeals(w http.ResponseWriter, r *http.Request) {
+func GetAllMeals(w http.ResponseWriter, _ *http.Request) {
 	// 获取餐列表
 	meals, err := models.GetAllMeals()
 	if err != nil {
@@ -437,7 +437,7 @@ func ImportSelection(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetCurrentSelectableMeals 获取当前可选餐
-func GetCurrentSelectableMeals(w http.ResponseWriter, r *http.Request) {
+func GetCurrentSelectableMeals(w http.ResponseWriter, _ *http.Request) {
 	// 获取当前可选餐
 	meals, err := models.GetCurrentSelectableMeals()
 	if err != nil {
@@ -450,7 +450,7 @@ func GetCurrentSelectableMeals(w http.ResponseWriter, r *http.Request) {
 }
 
 // CleanupExpiredMeals 清理过期的餐
-func CleanupExpiredMeals(w http.ResponseWriter, r *http.Request) {
+func CleanupExpiredMeals(w http.ResponseWriter, _ *http.Request) {
 	// 清理过期的餐
 	err := models.CleanupExpiredMeals()
 	if err != nil {

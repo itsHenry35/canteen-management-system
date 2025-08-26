@@ -106,7 +106,10 @@ func Load() error {
 // Get 获取配置实例
 func Get() *Config {
 	if config == nil {
-		Load()
+		err := Load()
+		if err != nil {
+			return nil
+		}
 	}
 	return config
 }

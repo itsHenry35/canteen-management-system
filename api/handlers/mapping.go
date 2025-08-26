@@ -8,7 +8,7 @@ import (
 )
 
 // RebuildParentStudentMapping 重建家长-学生映射关系
-func RebuildParentStudentMapping(w http.ResponseWriter, r *http.Request) {
+func RebuildParentStudentMapping(w http.ResponseWriter, _ *http.Request) {
 	// 检查是否已经在重建中
 	if services.IsRebuildingMapping() {
 		utils.ResponseError(w, http.StatusConflict, "家长-学生映射关系重建任务已在进行中，请等待完成")
@@ -31,7 +31,7 @@ func RebuildParentStudentMapping(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetMappingLogs 获取家长-学生映射关系重建的日志
-func GetMappingLogs(w http.ResponseWriter, r *http.Request) {
+func GetMappingLogs(w http.ResponseWriter, _ *http.Request) {
 	// 获取所有日志
 	logs := services.GetMappingLogs()
 

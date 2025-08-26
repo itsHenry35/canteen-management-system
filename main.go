@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"embed"
+	"errors"
 	"fmt"
 	"io/fs"
 	"log"
@@ -70,7 +71,7 @@ func main() {
 	// 启动服务器（非阻塞）
 	go func() {
 		log.Printf("Server is running on port %d", config.Get().Server.Port)
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Fatalf("Failed to start server: %v", err)
 		}
 	}()
@@ -85,7 +86,10 @@ func main() {
 	scheduler.Stop()
 
 	// 关闭数据库连接
-	database.Close()
+	err = database.Close()
+	if err != nil {
+		log.Printf("Failed to close database: %v", err)
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

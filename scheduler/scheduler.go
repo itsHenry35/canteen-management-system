@@ -22,9 +22,9 @@ var (
 
 // 任务类型常量
 const (
-	TaskCleanup    = "cleanup"     // 清理过期餐食任务
-	TaskReminder   = "reminder"    // 选餐提醒任务
-	TaskAutoSelect = "auto_select" // 自动选餐任务
+	TaskCleanup    = "cleanup"      // 清理过期餐食任务
+	TaskReminder   = "reminder_"    // 选餐提醒任务
+	TaskAutoSelect = "auto_select_" // 自动选餐任务
 )
 
 // 初始化
@@ -149,7 +149,7 @@ func reloadAutoSelectTasks() error {
 	cfg := config.Get()
 
 	// 移除所有以'auto_select_'开头的任务
-	removeTasksWithPrefix("auto_select_")
+	removeTasksWithPrefix(TaskAutoSelect)
 
 	// 如果任务未启用，直接返回
 	if !cfg.Scheduler.AutoSelectEnabled {
@@ -201,7 +201,7 @@ func reloadAutoSelectTasks() error {
 				}
 
 				// 保存任务ID
-				taskKey := fmt.Sprintf("auto_select_%d", meal.ID)
+				taskKey := fmt.Sprintf("%s%d", TaskAutoSelect, meal.ID)
 				saveTaskID(taskKey, entryID)
 				addLog(fmt.Sprintf("已为餐ID=%d添加自动选餐任务，执行时间：%s",
 					meal.ID, meal.SelectionEndTime.Format("2006-01-02 15:04:05")))
@@ -256,7 +256,7 @@ func reloadReminderTasks() error {
 	cfg := config.Get()
 
 	// 移除所有以'reminder_'开头的任务
-	removeTasksWithPrefix("reminder_")
+	removeTasksWithPrefix(TaskReminder)
 
 	// 如果任务未启用，直接返回
 	if !cfg.Scheduler.ReminderEnabled {
@@ -301,7 +301,7 @@ func reloadReminderTasks() error {
 			}
 
 			// 保存任务ID
-			taskKey := fmt.Sprintf("reminder_%d", meal.ID)
+			taskKey := fmt.Sprintf("%s%d", TaskReminder, meal.ID)
 			saveTaskID(taskKey, entryID)
 			addLog(fmt.Sprintf("已为餐ID=%d添加提醒任务，执行时间：%s",
 				meal.ID, reminderTime.Format("2006-01-02 15:04:05")))

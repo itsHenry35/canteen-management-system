@@ -88,7 +88,7 @@ func GetMealByID(id int) (*Meal, error) {
 	)
 
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, errors.New("餐不存在")
 		}
 		return nil, err
@@ -194,7 +194,7 @@ func DeleteMeal(id int) error {
 	var imagePath string
 	err = tx.QueryRow("SELECT image_path FROM meals WHERE id = ?", id).Scan(&imagePath)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return errors.New("餐不存在")
 		}
 		return err

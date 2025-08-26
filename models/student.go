@@ -181,7 +181,7 @@ func GetStudentByID(id int) (*Student, error) {
 	)
 
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, errors.New("student not found")
 		}
 		return nil, err
@@ -257,7 +257,7 @@ func GetStudentByDingTalkID(dingTalkID string) (*Student, error) {
 	)
 
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, errors.New("student not found")
 		}
 		return nil, err
