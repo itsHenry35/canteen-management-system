@@ -1,0 +1,1906 @@
+openapi: 3.0.3
+info:
+  title: Canteen Management System API
+  description: |
+    饭卡管理系统 API 文档
+    
+    该系统提供以下功能：
+    - 用户认证（账密登录和钉钉登录）
+    - 学生管理
+    - 餐食管理
+    - 选餐管理
+    - 食堂扫码取餐
+    - 系统设置和调度管理
+    
+    ## 认证方式
+    除公开接口外，所有API都需要在请求头中携带Bearer Token：
+    ```
+    Authorization: Bearer <token>
+    ```
+    
+    ## 用户角色
+    - `admin`: 系统管理员
+    - `canteen_a`: A餐厅工作人员
+    - `canteen_b`: B餐厅工作人员  
+    - `canteen_test`: 测试餐厅工作人员
+    - `student`: 学生
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: zhr0305@outlook.com
+servers:
+  - url: http://localhost:8080
+    description: Development server
+
+paths:
+  # 公开接口
+  /api/login:
+    post:
+      tags:
+        - Authentication
+      summary: 用户登录
+      description: 管理员和食堂工作人员使用账号密码登录
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: 登录成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  
+  /api/dingtalk/login:
+    post:
+      tags:
+        - Authentication
+      summary: 钉钉登录
+      description: 使用钉钉免登code进行登录，支持学生、家长和管理员
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DingTalkLoginRequest'
+      responses:
+        '200':
+          description: 登录成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DingTalkLoginResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  
+  /api/website_info:
+    get:
+      tags:
+        - Public
+      summary: 获取网站信息
+      description: 获取网站基本信息，包括名称、备案信息等
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebsiteInfoResponse'
+  
+  # 管理员接口
+  /api/admin/users:
+    get:
+      tags:
+        - Admin - User Management
+      summary: 获取用户列表
+      description: 获取所有用户列表，可按角色筛选
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: role
+          in: query
+          description: 用户角色筛选
+          schema:
+            $ref: '#/components/schemas/UserRole'
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags:
+        - Admin - User Management
+      summary: 创建用户
+      description: 创建新的管理员或食堂用户
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '200':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  
+  /api/admin/users/{id}:
+    get:
+      tags:
+        - Admin - User Management
+      summary: 获取用户信息
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/User'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - Admin - User Management
+      summary: 更新用户信息
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+        - Admin - User Management
+      summary: 删除用户
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: 删除成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          success:
+                            type: boolean
+                            example: true
+        '403':
+          description: 禁止操作（不能删除自己）
+        '404':
+          $ref: '#/components/responses/NotFound'
+  
+  /api/admin/students:
+    get:
+      tags:
+        - Admin - Student Management
+      summary: 获取学生列表
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Student'
+    post:
+      tags:
+        - Admin - Student Management
+      summary: 创建学生
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateStudentRequest'
+      responses:
+        '200':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Student'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  
+  /api/admin/students/{id}:
+    get:
+      tags:
+        - Admin - Student Management
+      summary: 获取学生信息
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/StudentId'
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Student'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - Admin - Student Management
+      summary: 更新学生信息
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/StudentId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateStudentRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Student'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+        - Admin - Student Management
+      summary: 删除学生
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/StudentId'
+      responses:
+        '200':
+          description: 删除成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          success:
+                            type: boolean
+                            example: true
+        '404':
+          $ref: '#/components/responses/NotFound'
+  
+  /api/admin/students/{id}/qrcode-data:
+    get:
+      tags:
+        - Admin - Student Management
+      summary: 获取学生二维码数据
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/StudentId'
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          qr_data:
+                            type: string
+                            description: 加密的二维码数据
+        '404':
+          $ref: '#/components/responses/NotFound'
+  
+  /api/admin/meals:
+    get:
+      tags:
+        - Admin - Meal Management
+      summary: 获取餐食列表
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Meal'
+    post:
+      tags:
+        - Admin - Meal Management
+      summary: 创建餐食
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMealRequest'
+      responses:
+        '200':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Meal'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  
+  /api/admin/meals/{id}:
+    get:
+      tags:
+        - Admin - Meal Management
+      summary: 获取餐食信息
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/MealId'
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Meal'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - Admin - Meal Management
+      summary: 更新餐食信息
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/MealId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateMealRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Meal'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+        - Admin - Meal Management
+      summary: 删除餐食
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/MealId'
+      responses:
+        '200':
+          description: 删除成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          success:
+                            type: boolean
+                            example: true
+        '404':
+          $ref: '#/components/responses/NotFound'
+  
+  /api/admin/meals/{id}/selections:
+    get:
+      tags:
+        - Admin - Meal Management
+      summary: 获取餐食选择情况
+      description: 获取指定餐食的选择统计，返回A餐、B餐和未选择的学生ID列表
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/MealId'
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          a:
+                            type: array
+                            items:
+                              type: integer
+                            description: 选择A餐的学生ID列表
+                          b:
+                            type: array
+                            items:
+                              type: integer
+                            description: 选择B餐的学生ID列表
+                          unselected:
+                            type: array
+                            items:
+                              type: integer
+                            description: 未选择的学生ID列表
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  
+  /api/admin/meals/cleanup:
+    post:
+      tags:
+        - Admin - Meal Management
+      summary: 清理过期餐食
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 清理成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          success:
+                            type: boolean
+                            example: true
+  
+  /api/admin/selections:
+    get:
+      tags:
+        - Admin - Selection Management
+      summary: 获取所有学生选餐统计
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/MealSelectionStats'
+  
+  /api/admin/selections/batch:
+    post:
+      tags:
+        - Admin - Selection Management
+      summary: 批量选餐
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchMealSelectionRequest'
+      responses:
+        '200':
+          description: 批量选餐成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          success:
+                            type: boolean
+                            example: true
+                          count:
+                            type: integer
+                            description: 成功选餐的数量
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  
+  /api/admin/selections/import:
+    post:
+      tags:
+        - Admin - Selection Management
+      summary: 导入选餐
+      description: 通过学生ID或钉钉ID为指定学生选餐
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportSelectionRequest'
+      responses:
+        '200':
+          description: 导入成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          success:
+                            type: boolean
+                            example: true
+                          message:
+                            type: string
+                            example: "导入选餐成功"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  
+  /api/admin/notify/unselected:
+    post:
+      tags:
+        - Admin - Selection Management
+      summary: 提醒未选餐学生
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotifyUnselectedStudentsRequest'
+      responses:
+        '200':
+          description: 提醒发送成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          success:
+                            type: boolean
+                            example: true
+                          message:
+                            type: string
+                            example: "未选餐提醒已开始发送"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  
+  /api/admin/settings:
+    get:
+      tags:
+        - Admin - System Management
+      summary: 获取系统设置
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/SystemSettings'
+    put:
+      tags:
+        - Admin - System Management
+      summary: 更新系统设置
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSettingsRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/SystemSettings'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  
+  /api/admin/scheduler/logs:
+    get:
+      tags:
+        - Admin - System Management
+      summary: 获取定时任务日志
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          logs:
+                            type: array
+                            items:
+                              type: string
+                            description: 定时任务日志列表
+  
+  /api/admin/rebuild-mapping:
+    post:
+      tags:
+        - Admin - System Management
+      summary: 重建家长学生映射关系
+      description: |
+        重建钉钉家长与学生的关联关系。这是一个异步操作，会立即返回成功，
+        实际重建过程在后台进行。可以通过日志接口查看进度。
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 重建任务已启动
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          message:
+                            type: string
+                            example: "家长-学生映射关系重建任务已启动"
+        '409':
+          description: 重建任务已在进行中
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  
+  /api/admin/rebuild-mapping/logs:
+    get:
+      tags:
+        - Admin - System Management
+      summary: 获取映射重建日志
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          logs:
+                            type: array
+                            items:
+                              type: string
+                            description: 映射重建日志列表
+  
+  # 食堂工作人员接口
+  /api/canteen/scan:
+    post:
+      tags:
+        - Canteen
+      summary: 扫描学生二维码
+      description: 食堂工作人员扫描学生二维码进行取餐记录
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScanStudentQRCodeRequest'
+      responses:
+        '200':
+          description: 扫描成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ScanStudentQRCodeResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  
+  # 学生接口
+  /api/student/meals/current:
+    get:
+      tags:
+        - Student
+      summary: 获取当前可选餐食
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Meal'
+  
+  /api/student/selection:
+    get:
+      tags:
+        - Student
+      summary: 获取学生选餐记录
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          selections:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/StudentMealSelection'
+    post:
+      tags:
+        - Student
+      summary: 学生选餐
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MealSelectionRequest'
+      responses:
+        '200':
+          description: 选餐成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/MealSelection'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  
+  /api/student/selection/current:
+    get:
+      tags:
+        - Student
+      summary: 获取学生当前选餐
+      description: 获取学生当前日期有效的选餐记录
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        oneOf:
+                          - type: object
+                            properties:
+                              has_selection:
+                                type: boolean
+                                example: false
+                          - type: object
+                            properties:
+                              has_selection:
+                                type: boolean
+                                example: true
+                              selection:
+                                $ref: '#/components/schemas/MealSelection'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from login endpoints
+  
+  parameters:
+    UserId:
+      name: id
+      in: path
+      required: true
+      description: 用户ID
+      schema:
+        type: integer
+        example: 1
+    
+    StudentId:
+      name: id
+      in: path
+      required: true
+      description: 学生ID
+      schema:
+        type: integer
+        example: 1
+    
+    MealId:
+      name: id
+      in: path
+      required: true
+      description: 餐食ID
+      schema:
+        type: integer
+        example: 1
+  
+  responses:
+    BadRequest:
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          example:
+            code: 400
+            message: "invalid request"
+    
+    Unauthorized:
+      description: 未授权访问
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          example:
+            code: 401
+            message: "authorization header is required"
+    
+    Forbidden:
+      description: 权限不足
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          example:
+            code: 403
+            message: "forbidden"
+    
+    NotFound:
+      description: 资源不存在
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          example:
+            code: 404
+            message: "resource not found"
+  
+  schemas:
+    # 基础响应结构
+    ApiResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 200
+        message:
+          type: string
+          example: "success"
+        data:
+          type: object
+      required:
+        - code
+        - message
+    
+    ApiError:
+      type: object
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+      required:
+        - code
+        - message
+    
+    # 枚举类型
+    UserRole:
+      type: string
+      enum: [admin, canteen_a, canteen_b, canteen_test]
+      description: |
+        用户角色:
+        * `admin` - 系统管理员
+        * `canteen_a` - A餐厅工作人员
+        * `canteen_b` - B餐厅工作人员
+        * `canteen_test` - 测试餐厅工作人员
+    
+    MealType:
+      type: string
+      enum: [A, B]
+      description: |
+        餐食类型:
+        * `A` - A餐
+        * `B` - B餐
+    
+    # 认证相关
+    LoginRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          description: 用户名
+          example: "admin"
+        password:
+          type: string
+          description: 密码
+          example: "password123"
+    
+    LoginResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                token:
+                  type: string
+                  description: JWT令牌
+                  example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                user:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      example: 1
+                    username:
+                      type: string
+                      example: "admin"
+                    full_name:
+                      type: string
+                      example: "系统管理员"
+                    role:
+                      type: string
+                      example: "admin"
+              required:
+                - token
+                - user
+    
+    DingTalkLoginRequest:
+      type: object
+      required:
+        - code
+      properties:
+        code:
+          type: string
+          description: 钉钉免登code
+          example: "abc123def456"
+    
+    DingTalkLoginResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              oneOf:
+                - type: object
+                  description: 单个用户登录
+                  properties:
+                    token:
+                      type: string
+                      description: JWT令牌
+                    user:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        username:
+                          type: string
+                        full_name:
+                          type: string
+                        role:
+                          type: string
+                - type: object
+                  description: 多个学生登录（家长）
+                  properties:
+                    students:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                          username:
+                            type: string
+                          full_name:
+                            type: string
+                          class:
+                            type: string
+                          token:
+                            type: string
+    
+    # 网站信息
+    WebsiteInfoResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: 网站名称
+                  example: "饭卡管理系统"
+                icp_beian:
+                  type: string
+                  description: ICP备案信息
+                  example: "京ICP备12345678号"
+                public_sec_beian:
+                  type: string
+                  description: 公安部备案信息
+                  example: "京公网安备11000000000000号"
+                dingtalk_corp_id:
+                  type: string
+                  description: 钉钉企业ID
+                  example: "dingxxxxxxxxxxxxx"
+                domain:
+                  type: string
+                  description: 网站域名
+                  example: "https://canteen.example.com"
+    
+    # 用户相关
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        username:
+          type: string
+          example: "admin"
+        full_name:
+          type: string
+          example: "系统管理员"
+        role:
+          $ref: '#/components/schemas/UserRole'
+        dingtalk_id:
+          type: string
+          example: "user123456"
+      required:
+        - id
+        - username
+        - full_name
+        - role
+    
+    CreateUserRequest:
+      type: object
+      required:
+        - username
+        - password
+        - full_name
+        - role
+      properties:
+        username:
+          type: string
+          example: "canteen_worker"
+        password:
+          type: string
+          example: "password123"
+        full_name:
+          type: string
+          example: "食堂工作人员"
+        role:
+          $ref: '#/components/schemas/UserRole'
+        dingtalk_id:
+          type: string
+          description: 钉钉ID（可选）
+          example: "user123456"
+    
+    UpdateUserRequest:
+      type: object
+      properties:
+        full_name:
+          type: string
+          description: 姓名（可选）
+          example: "新姓名"
+        password:
+          type: string
+          description: 密码（可选）
+          example: "newpassword123"
+        dingtalk_id:
+          type: string
+          description: 钉钉ID（可选）
+          example: "newuser123456"
+    
+    # 学生相关
+    Student:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        username:
+          type: string
+          example: "stuzs12345678"
+        full_name:
+          type: string
+          example: "张三"
+        class:
+          type: string
+          example: "三年级1班"
+        dingtalk_id:
+          type: string
+          example: "student123456"
+        last_meal_collection_date:
+          type: string
+          format: date-time
+          description: 最后取餐时间
+          example: "2023-12-01T12:30:00Z"
+      required:
+        - id
+        - username
+        - full_name
+        - class
+        - dingtalk_id
+    
+    CreateStudentRequest:
+      type: object
+      required:
+        - full_name
+        - class
+      properties:
+        full_name:
+          type: string
+          example: "张三"
+        class:
+          type: string
+          example: "三年级1班"
+        dingtalk_id:
+          type: string
+          description: 钉钉ID（可选）
+          example: "student123456"
+    
+    UpdateStudentRequest:
+      type: object
+      properties:
+        full_name:
+          type: string
+          description: 姓名（可选）
+          example: "新姓名"
+        class:
+          type: string
+          description: 班级（可选）
+          example: "新班级"
+        dingtalk_id:
+          type: string
+          description: 钉钉ID（可选）
+          example: "newstudent123456"
+    
+    # 餐食相关
+    Meal:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: "午餐套餐A"
+        selection_start_time:
+          type: string
+          format: date-time
+          description: 选餐开始时间
+          example: "2023-12-01T08:00:00Z"
+        selection_end_time:
+          type: string
+          format: date-time
+          description: 选餐结束时间
+          example: "2023-12-01T10:00:00Z"
+        effective_start_date:
+          type: string
+          format: date-time
+          description: 领餐开始生效日期
+          example: "2023-12-01T11:00:00Z"
+        effective_end_date:
+          type: string
+          format: date-time
+          description: 领餐结束生效日期
+          example: "2023-12-01T13:00:00Z"
+        image_path:
+          type: string
+          description: 餐食图片路径
+          example: "/static/images/meal_1702123456.jpg"
+      required:
+        - id
+        - name
+        - selection_start_time
+        - selection_end_time
+        - effective_start_date
+        - effective_end_date
+        - image_path
+    
+    CreateMealRequest:
+      type: object
+      required:
+        - name
+        - selection_start_time
+        - selection_end_time
+        - effective_start_date
+        - effective_end_date
+        - image
+      properties:
+        name:
+          type: string
+          example: "午餐套餐A"
+        selection_start_time:
+          type: string
+          format: date-time
+          description: 选餐开始时间
+          example: "2023-12-01T08:00:00Z"
+        selection_end_time:
+          type: string
+          format: date-time
+          description: 选餐结束时间
+          example: "2023-12-01T10:00:00Z"
+        effective_start_date:
+          type: string
+          format: date-time
+          description: 领餐开始生效日期
+          example: "2023-12-01T11:00:00Z"
+        effective_end_date:
+          type: string
+          format: date-time
+          description: 领餐结束生效日期
+          example: "2023-12-01T13:00:00Z"
+        image:
+          type: string
+          description: Base64编码的图片数据
+          example: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD..."
+    
+    UpdateMealRequest:
+      type: object
+      required:
+        - selection_start_time
+        - selection_end_time
+        - effective_start_date
+        - effective_end_date
+      properties:
+        name:
+          type: string
+          description: 餐名（可选）
+          example: "午餐套餐A（修改版）"
+        selection_start_time:
+          type: string
+          format: date-time
+          description: 选餐开始时间
+          example: "2023-12-01T08:00:00Z"
+        selection_end_time:
+          type: string
+          format: date-time
+          description: 选餐结束时间
+          example: "2023-12-01T10:00:00Z"
+        effective_start_date:
+          type: string
+          format: date-time
+          description: 领餐开始生效日期
+          example: "2023-12-01T11:00:00Z"
+        effective_end_date:
+          type: string
+          format: date-time
+          description: 领餐结束生效日期
+          example: "2023-12-01T13:00:00Z"
+        image:
+          type: string
+          description: Base64编码的图片数据（可选）
+          example: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD..."
+    
+    # 选餐相关
+    MealSelection:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        student_id:
+          type: integer
+          example: 1
+        meal_id:
+          type: integer
+          example: 1
+        meal_type:
+          $ref: '#/components/schemas/MealType'
+        student:
+          $ref: '#/components/schemas/Student'
+        meal:
+          $ref: '#/components/schemas/Meal'
+      required:
+        - id
+        - student_id
+        - meal_id
+        - meal_type
+    
+    MealSelectionRequest:
+      type: object
+      required:
+        - meal_id
+        - meal_type
+      properties:
+        meal_id:
+          type: integer
+          example: 1
+        meal_type:
+          $ref: '#/components/schemas/MealType'
+    
+    BatchMealSelectionRequest:
+      type: object
+      required:
+        - meal_id
+        - meal_type
+      properties:
+        student_ids:
+          type: array
+          items:
+            type: integer
+          description: 学生ID列表（可选，如果不提供则为所有未选餐学生选餐）
+          example: [1, 2, 3]
+        meal_id:
+          type: integer
+          example: 1
+        meal_type:
+          $ref: '#/components/schemas/MealType'
+    
+    ImportSelectionRequest:
+      type: object
+      required:
+        - method
+        - id
+        - meal_type
+        - meal_id
+      properties:
+        method:
+          type: string
+          enum: [student_id, dingtalk_id]
+          description: |
+            导入方法:
+            * `student_id` - 使用学生ID
+            * `dingtalk_id` - 使用钉钉ID
+        id:
+          type: string
+          description: 学生ID或钉钉ID
+          example: "123"
+        meal_type:
+          $ref: '#/components/schemas/MealType'
+        meal_id:
+          type: integer
+          example: 1
+    
+    StudentMealSelection:
+      type: object
+      properties:
+        meal_id:
+          type: integer
+          example: 1
+        meal_type:
+          oneOf:
+            - $ref: '#/components/schemas/MealType'
+        selectable:
+          type: boolean
+          description: 是否可选
+          example: true
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: "午餐套餐A"
+        selection_start_time:
+          type: string
+          format: date-time
+          example: "2023-12-01T08:00:00Z"
+        selection_end_time:
+          type: string
+          format: date-time
+          example: "2023-12-01T10:00:00Z"
+        effective_start_date:
+          type: string
+          format: date-time
+          example: "2023-12-01T11:00:00Z"
+        effective_end_date:
+          type: string
+          format: date-time
+          example: "2023-12-01T13:00:00Z"
+        image_path:
+          type: string
+          example: "/static/images/meal_1702123456.jpg"
+      required:
+        - meal_id
+        - selectable
+        - id
+        - name
+        - selection_start_time
+        - selection_end_time
+        - effective_start_date
+        - effective_end_date
+        - image_path
+    
+    MealSelectionStats:
+      type: object
+      properties:
+        meal_id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: "午餐套餐A"
+        image_path:
+          type: string
+          example: "/static/images/meal_1702123456.jpg"
+        effective_start:
+          type: string
+          format: date-time
+          example: "2023-12-01T11:00:00Z"
+        effective_end:
+          type: string
+          format: date-time
+          example: "2023-12-01T13:00:00Z"
+        selection_start:
+          type: string
+          format: date-time
+          example: "2023-12-01T08:00:00Z"
+        selection_end:
+          type: string
+          format: date-time
+          example: "2023-12-01T10:00:00Z"
+        total:
+          type: integer
+          description: 学生总数
+          example: 100
+        total_a:
+          type: integer
+          description: 选择A餐的学生数
+          example: 45
+        total_b:
+          type: integer
+          description: 选择B餐的学生数
+          example: 35
+        total_unselected:
+          type: integer
+          description: 未选餐的学生数
+          example: 20
+      required:
+        - meal_id
+        - name
+        - total
+        - total_a
+        - total_b
+        - total_unselected
+    
+    NotifyUnselectedStudentsRequest:
+      type: object
+      required:
+        - meal_id
+      properties:
+        meal_id:
+          type: integer
+          description: 餐食ID
+          example: 1
+    
+    # 食堂扫码
+    ScanStudentQRCodeRequest:
+      type: object
+      required:
+        - qr_data
+      properties:
+        qr_data:
+          type: string
+          description: 加密的二维码数据
+          example: "encrypted_qr_data_string"
+    
+    ScanStudentQRCodeResponse:
+      type: object
+      properties:
+        student_id:
+          type: integer
+          example: 1
+        student_name:
+          type: string
+          example: "张三"
+        has_selected:
+          type: boolean
+          description: 是否已选餐
+          example: true
+        meal_type:
+          $ref: '#/components/schemas/MealType'
+        has_collected:
+          type: boolean
+          description: 今日是否已取餐
+          example: false
+      required:
+        - student_id
+        - student_name
+        - has_selected
+        - meal_type
+        - has_collected
+    
+    # 系统设置
+    SystemSettings:
+      type: object
+      properties:
+        server:
+          type: object
+          properties:
+            port:
+              type: integer
+              example: 8080
+            host:
+              type: string
+              example: "localhost"
+        database:
+          type: object
+          properties:
+            path:
+              type: string
+              example: "./data/canteen.db"
+        dingtalk:
+          type: object
+          properties:
+            app_key:
+              type: string
+              example: "dingxxxxxxxxxxxxxxx"
+            app_secret:
+              type: string
+              example: "xxxxxxxxxxxxxxxxxxxxxxxxx"
+            agent_id:
+              type: string
+              example: "123456789"
+            corp_id:
+              type: string
+              example: "dingxxxxxxxxxxxxxxx"
+        website:
+          type: object
+          properties:
+            name:
+              type: string
+              example: "饭卡管理系统"
+            icp_beian:
+              type: string
+              example: "京ICP备12345678号"
+            public_sec_beian:
+              type: string
+              example: "京公网安备11000000000000号"
+            domain:
+              type: string
+              example: "https://canteen.example.com"
+        scheduler:
+          type: object
+          properties:
+            enabled:
+              type: boolean
+              description: 定时任务总开关
+              example: true
+            cleanup_time:
+              type: string
+              description: 清理过期餐食时间（HH:MM格式）
+              example: "02:00"
+            reminder_before_end_hours:
+              type: integer
+              description: 选餐截止前多少小时发送提醒
+              example: 6
+            cleanup_enabled:
+              type: boolean
+              description: 是否启用清理过期餐食任务
+              example: true
+            reminder_enabled:
+              type: boolean
+              description: 是否启用选餐提醒任务
+              example: true
+            auto_select_enabled:
+              type: boolean
+              description: 是否启用自动选餐任务
+              example: false
+    
+    UpdateSettingsRequest:
+      type: object
+      required:
+        - dingtalk
+        - website
+        - scheduler
+      properties:
+        dingtalk:
+          type: object
+          required:
+            - app_key
+            - app_secret
+            - agent_id
+            - corp_id
+          properties:
+            app_key:
+              type: string
+              example: "dingxxxxxxxxxxxxxxx"
+            app_secret:
+              type: string
+              example: "xxxxxxxxxxxxxxxxxxxxxxxxx"
+            agent_id:
+              type: string
+              example: "123456789"
+            corp_id:
+              type: string
+              example: "dingxxxxxxxxxxxxxxx"
+        website:
+          type: object
+          required:
+            - name
+            - icp_beian
+            - public_sec_beian
+            - domain
+          properties:
+            name:
+              type: string
+              example: "饭卡管理系统"
+            icp_beian:
+              type: string
+              example: "京ICP备12345678号"
+            public_sec_beian:
+              type: string
+              example: "京公网安备11000000000000号"
+            domain:
+              type: string
+              example: "https://canteen.example.com"
+        scheduler:
+          type: object
+          required:
+            - enabled
+            - cleanup_time
+            - reminder_before_end_hours
+            - cleanup_enabled
+            - reminder_enabled
+            - auto_select_enabled
+          properties:
+            enabled:
+              type: boolean
+              description: 定时任务总开关
+              example: true
+            cleanup_time:
+              type: string
+              description: 清理过期餐食时间（HH:MM格式）
+              example: "02:00"
+            reminder_before_end_hours:
+              type: integer
+              description: 选餐截止前多少小时发送提醒
+              example: 6
+            cleanup_enabled:
+              type: boolean
+              description: 是否启用清理过期餐食任务
+              example: true
+            reminder_enabled:
+              type: boolean
+              description: 是否启用选餐提醒任务
+              example: true
+            auto_select_enabled:
+              type: boolean
+              description: 是否启用自动选餐任务
+              example: false
+
+tags:
+  - name: Authentication
+    description: 用户认证相关接口
+  - name: Public
+    description: 公开访问接口
+  - name: Admin - User Management
+    description: 管理员 - 用户管理
+  - name: Admin - Student Management
+    description: 管理员 - 学生管理
+  - name: Admin - Meal Management
+    description: 管理员 - 餐食管理
+  - name: Admin - Selection Management
+    description: 管理员 - 选餐管理
+  - name: Admin - System Management
+    description: 管理员 - 系统管理
+  - name: Canteen
+    description: 食堂工作人员接口
+  - name: Student
+    description: 学生接口
