@@ -1,9 +1,6 @@
 package models
 
 import (
-	"database/sql"
-	"errors"
-
 	"github.com/itsHenry35/canteen-management-system/database"
 )
 
@@ -46,32 +43,6 @@ func GetStudentsByParentID(parentID string) ([]*ParentStudentRelation, error) {
 	return relations, nil
 }
 
-// GetStudentIDsByParentID 根据家长ID获取所有关联学生的ID
-func GetStudentIDsByParentID(parentID string) ([]int, error) {
-	// 获取数据库连接
-	db := database.GetDB()
-
-	// 执行查询
-	rows, err := db.Query("SELECT student_id FROM parent_student_relations WHERE parent_id = ?", parentID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	// 处理结果
-	var studentIDs []int
-	for rows.Next() {
-		var studentID int
-		err := rows.Scan(&studentID)
-		if err != nil {
-			return nil, err
-		}
-		studentIDs = append(studentIDs, studentID)
-	}
-
-	return studentIDs, nil
-}
-
 // SaveParentStudentRelation 保存家长学生关系
 func SaveParentStudentRelation(parentID string, studentID string) error {
 	// 获取数据库连接
@@ -97,45 +68,6 @@ func SaveParentStudentRelation(parentID string, studentID string) error {
 	)
 
 	return err
-}
-
-// DeleteParentStudentRelation 删除家长学生关系
-func DeleteParentStudentRelation(parentID string, studentID int) error {
-	// 获取数据库连接
-	db := database.GetDB()
-
-	// 删除关系
-	_, err := db.Exec(
-		"DELETE FROM parent_student_relations WHERE parent_id = ? AND student_id = ?",
-		parentID, studentID,
-	)
-
-	return err
-}
-
-// GetParentStudentRelationByID 通过ID获取家长学生关系
-func GetParentStudentRelationByID(id int) (*ParentStudentRelation, error) {
-	// 获取数据库连接
-	db := database.GetDB()
-
-	// 查询关系
-	var relation ParentStudentRelation
-	err := db.QueryRow(
-		`SELECT psr.id, psr.parent_id, psr.student_id, s.full_name
-		FROM parent_student_relations psr
-		JOIN students s ON psr.student_id = s.id
-		WHERE psr.id = ?`,
-		id,
-	).Scan(&relation.ID, &relation.ParentID, &relation.StudentID, &relation.StudentName)
-
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, errors.New("relation not found")
-		}
-		return nil, err
-	}
-
-	return &relation, nil
 }
 
 // ClearAllParentStudentRelations 清空所有家长-学生关系

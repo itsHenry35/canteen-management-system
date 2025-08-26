@@ -414,26 +414,6 @@ func BatchSelectMeals(studentIDs []int, mealID int, mealType MealType) (int, err
 	return 0, fmt.Errorf("批量选餐失败，已重试 %d 次: %v", maxRetries, lastErr)
 }
 
-// DeleteMealSelection 删除选餐记录
-func DeleteMealSelection(id int) error {
-	// 获取数据库连接
-	db := database.GetDB()
-
-	// 删除选餐记录
-	_, err := db.Exec("DELETE FROM meal_selections WHERE id = ?", id)
-	return err
-}
-
-// DeleteMealSelectionsByMeal 删除餐的所有选餐记录
-func DeleteMealSelectionsByMeal(mealID int) error {
-	// 获取数据库连接
-	db := database.GetDB()
-
-	// 删除餐的所有选餐记录
-	_, err := db.Exec("DELETE FROM meal_selections WHERE meal_id = ?", mealID)
-	return err
-}
-
 // GetStudentCurrentSelection 获取学生当前日期的选餐
 func GetStudentCurrentSelection(studentID int) (*MealSelection, error) {
 	// 获取数据库连接

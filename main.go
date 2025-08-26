@@ -84,6 +84,9 @@ func main() {
 	// 停止定时任务
 	scheduler.Stop()
 
+	// 关闭数据库连接
+	database.Close()
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 

@@ -237,39 +237,6 @@ func GetAllStudents() ([]*Student, error) {
 	return students, nil
 }
 
-// GetStudentByUsername 通过用户名获取学生
-func GetStudentByUsername(username string) (*Student, error) {
-	// 获取数据库连接
-	db := database.GetDB()
-
-	// 查询学生
-	var student Student
-	var lastMealCollectionDate sql.NullTime
-
-	err := db.QueryRow(
-		`SELECT s.id, s.username, s.full_name, s.class, s.dingtalk_id, s.last_meal_collection_date
-		FROM students s 
-		WHERE s.username = ?`,
-		username,
-	).Scan(
-		&student.ID, &student.Username, &student.FullName, &student.Class,
-		&student.DingTalkID, &lastMealCollectionDate,
-	)
-
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, errors.New("student not found")
-		}
-		return nil, err
-	}
-
-	if lastMealCollectionDate.Valid {
-		student.LastMealCollectionDate = &lastMealCollectionDate.Time
-	}
-
-	return &student, nil
-}
-
 // GetStudentByDingTalkID 通过钉钉ID获取学生
 func GetStudentByDingTalkID(dingTalkID string) (*Student, error) {
 	// 获取数据库连接

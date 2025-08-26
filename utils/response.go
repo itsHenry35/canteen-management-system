@@ -3,7 +3,6 @@ package utils
 import (
 	"encoding/json"
 	"net/http"
-	"time"
 )
 
 // Response HTTP响应结构
@@ -43,21 +42,4 @@ func JSON(w http.ResponseWriter, httpStatus int, data interface{}) {
 	if err := json.NewEncoder(w).Encode(data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-}
-
-// GetCurrentWeekDay 获取当前的周数和星期几
-func GetCurrentWeekDay() (week, day int) {
-	now := time.Now()
-
-	// 计算当前是一年中的第几周
-	year, weekNum := now.ISOWeek()
-	week = year*100 + weekNum // 例如: 202510
-
-	// 获取当前是星期几 (1-7，代表周一到周日)
-	day = int(now.Weekday())
-	if day == 0 {
-		day = 7 // 将周日从0改为7
-	}
-
-	return week, day
 }
