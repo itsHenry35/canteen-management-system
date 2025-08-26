@@ -1,10 +1,10 @@
 # Educational Use Only License / 仅供教育使用许可证
-## Version 1.0, March 2025 / 版本 1.0，2025年3月
+## Version 1.1, August 2025 / 版本 1.1，2025年8月
 
 ### Terms and Conditions / 条款和条件
-This license governs the use of the software "食堂AB餐管理系统" and all associated source code, documentation, and materials (collectively, the "Software").
+This license governs the use of the software "食堂饭卡管理系统" and all associated source code, documentation, and materials (collectively, the "Software").
 
-本许可证管理"食堂AB餐管理系统"软件及所有相关源代码、文档和材料（统称为"软件"）的使用。
+本许可证管理"食堂饭卡管理系统"软件及所有相关源代码、文档和材料（统称为"软件"）的使用。
 
 ## 1. Definitions / 定义
 - "Educational Institution" means any accredited primary, secondary, or tertiary educational institution, including public and private schools, colleges, and universities, that is officially recognized as a non-profit organization in its jurisdiction of incorporation or operation.

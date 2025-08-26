@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/itsHenry35/canteen-management-system/config"
@@ -32,4 +33,43 @@ func GetWebsiteInfo(w http.ResponseWriter, _ *http.Request) {
 
 	// 返回响应
 	utils.ResponseOK(w, resp)
+}
+
+// GetManifest 获取 manifest.webmanifest 内容
+func GetManifest(w http.ResponseWriter, _ *http.Request) {
+	// 获取配置
+	cfg := config.Get()
+
+	// 构建manifest
+	resp := fmt.Sprintf(`
+	{
+		"short_name": "%s",
+		"name": "%s",
+		"icons": [
+			{
+			"src": "logo192.png",
+			"type": "image/png",
+			"sizes": "192x192"
+			},
+			{
+			"src": "logo512.png",
+			"type": "image/png",
+			"sizes": "512x512"
+			},
+			{
+			"src": "favicon.svg",
+			"sizes": "any",
+			"type": "image/svg+xml"
+			}
+		],
+		"start_url": ".",
+		"display": "standalone",
+		"theme_color": "#001529",
+		"background_color": "#f5f5f5"
+		}
+	`, cfg.Website.Name, cfg.Website.Name)
+
+	// 返回manifest
+	w.Header().Set("Content-Type", "application/manifest+json")
+	w.Write([]byte(resp))
 }

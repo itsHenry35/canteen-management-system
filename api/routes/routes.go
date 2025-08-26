@@ -110,7 +110,6 @@ func SetupRouter(staticFS fs.FS) *mux.Router {
 	rootStaticFiles := []string{
 		"robots.txt",
 		"favicon.svg",
-		"manifest.webmanifest",
 		"logo192.png",
 		"logo512.png",
 		"asset-manifest.json",
@@ -123,6 +122,9 @@ func SetupRouter(staticFS fs.FS) *mux.Router {
 	}
 	r.PathPrefix("/static/images/").Handler(http.StripPrefix("/static/images/", http.FileServer(http.Dir("./data/images"))))
 	r.PathPrefix("/static/").Handler(http.FileServer(http.FS(staticFS)))
+
+	// PWA manifest 服务
+	r.HandleFunc("/manifest.webmanifest", handlers.GetManifest).Methods("GET")
 
 	// 所有其他请求都指向前端入口点
 	r.PathPrefix("/").HandlerFunc(getStaticFSHandler(staticFS, "index.html")).Methods("GET")

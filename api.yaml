@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Canteen Management System API
   description: |
-    饭卡管理系统 API 文档
+    食堂饭卡管理系统 API 文档
     
     该系统提供以下功能：
     - 用户认证（账密登录和钉钉登录）
@@ -1234,7 +1234,7 @@ components:
                 name:
                   type: string
                   description: 网站名称
-                  example: "饭卡管理系统"
+                  example: "食堂饭卡管理系统"
                 icp_beian:
                   type: string
                   description: ICP备案信息
@@ -1765,13 +1765,13 @@ components:
           properties:
             name:
               type: string
-              example: "饭卡管理系统"
+              example: "食堂饭卡管理系统"
             icp_beian:
               type: string
-              example: "京ICP备12345678号"
+              example: "沪ICP备12345678号-1"
             public_sec_beian:
               type: string
-              example: "京公网安备11000000000000号"
+              example: "沪网安备31011302000001号"
             domain:
               type: string
               example: "https://canteen.example.com"
@@ -1840,13 +1840,13 @@ components:
           properties:
             name:
               type: string
-              example: "饭卡管理系统"
+              example: "食堂饭卡管理系统"
             icp_beian:
               type: string
-              example: "京ICP备12345678号"
+              example: "沪ICP备12345678号-1"
             public_sec_beian:
               type: string
-              example: "京公网安备11000000000000号"
+              example: "沪网安备31011302000001号"
             domain:
               type: string
               example: "https://canteen.example.com"

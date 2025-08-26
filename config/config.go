@@ -59,7 +59,7 @@ func Load() error {
 		config.Database.Path = "./data/canteen.db"
 		config.Security.JWTSecret = "default-jwt-secret-please-change-in-production" // 默认JWT密钥
 		config.Security.EncryptionKey = "default-encryption-key-needs-change"        // 默认加密密钥
-		config.Website.Name = "饭卡管理系统"                                               // 默认网站名称
+		config.Website.Name = "食堂饭卡管理系统"                                               // 默认网站名称
 		config.Website.ICPBeian = ""                                                 // 默认空ICP备案信息
 		config.Website.PublicSecBeian = ""                                           // 默认空公安部备案信息
 		config.Website.Domain = ""                                                   // 默认域名
