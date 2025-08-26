@@ -93,7 +93,7 @@ func SetupRouter(staticFS fs.FS) *mux.Router {
 	canteenAPI := secured.PathPrefix("/canteen").Subrouter()
 	canteenAPI.Use(middlewares.RoleMiddleware(services.RoleCanteenA, services.RoleCanteenB, services.RoleCanteenTest))
 
-	// 扫码取餐 (现在包含记录取餐功能)
+	// 扫码取餐
 	canteenAPI.HandleFunc("/scan", handlers.ScanStudentQRCode).Methods("POST")
 
 	// 学生API路由
@@ -110,7 +110,7 @@ func SetupRouter(staticFS fs.FS) *mux.Router {
 	rootStaticFiles := []string{
 		"robots.txt",
 		"favicon.svg",
-		"manifest.json",
+		"manifest.webmanifest",
 		"logo192.png",
 		"logo512.png",
 		"asset-manifest.json",
