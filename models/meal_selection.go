@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/itsHenry35/canteen-management-system/config"
@@ -48,99 +47,68 @@ func CreateMealSelection(studentID, mealID int, mealType MealType, validateMealT
 		}
 	}
 
-	// 最大重试次数
-	maxRetries := 3
-	var lastErr error
+	// 开始事务
+	tx, err := db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
 
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		// 如果不是第一次尝试，等待一段时间再重试
-		if attempt > 0 {
-			backoffTime := time.Duration(200*1<<uint(attempt-1)) * time.Millisecond
-			time.Sleep(backoffTime)
-		}
-
-		// 开始事务
-		tx, err := db.Begin()
-		if err != nil {
-			lastErr = err
-			continue
-		}
-
-		// 设置事务超时，防止长时间锁定
-		_, err = tx.Exec("PRAGMA busy_timeout = 5000")
-		if err != nil {
-			tx.Rollback()
-			lastErr = err
-			continue
-		}
-
-		// 检查是否已经有选餐记录
-		var count int
-		err = tx.QueryRow("SELECT COUNT(*) FROM meal_selections WHERE student_id = ? AND meal_id = ?", studentID, mealID).Scan(&count)
-		if err != nil {
-			tx.Rollback()
-			lastErr = err
-			continue
-		}
-
-		var result sql.Result
-		if count > 0 {
-			// 更新已有记录
-			result, err = tx.Exec(
-				"UPDATE meal_selections SET meal_type = ? WHERE student_id = ? AND meal_id = ?",
-				mealType, studentID, mealID,
-			)
-		} else {
-			// 插入新记录
-			result, err = tx.Exec(
-				"INSERT INTO meal_selections (student_id, meal_id, meal_type) VALUES (?, ?, ?)",
-				studentID, mealID, mealType,
-			)
-		}
-
-		if err != nil {
-			tx.Rollback()
-			lastErr = err
-			continue
-		}
-
-		// 如果是插入新记录，获取插入的ID
-		var selectionID int64
-		if count == 0 {
-			selectionID, err = result.LastInsertId()
-			if err != nil {
-				tx.Rollback()
-				lastErr = err
-				continue
-			}
-		} else {
-			// 如果是更新记录，获取现有记录的ID
-			err = tx.QueryRow("SELECT id FROM meal_selections WHERE student_id = ? AND meal_id = ?", studentID, mealID).Scan(&selectionID)
-			if err != nil {
-				tx.Rollback()
-				lastErr = err
-				continue
-			}
-		}
-
-		// 提交事务
-		if err := tx.Commit(); err != nil {
-			lastErr = err
-			continue
-		}
-
-		// 成功完成，返回选餐记录
-		return &MealSelection{
-			ID:        int(selectionID),
-			StudentID: studentID,
-			MealID:    mealID,
-			MealType:  mealType,
-			Student:   student,
-			Meal:      meal,
-		}, nil
+	// 检查是否已经有选餐记录
+	var count int
+	err = tx.QueryRow("SELECT COUNT(*) FROM meal_selections WHERE student_id = ? AND meal_id = ?", studentID, mealID).Scan(&count)
+	if err != nil {
+		return nil, err
 	}
 
-	return nil, fmt.Errorf("创建选餐记录失败，已重试 %d 次: %v", maxRetries, lastErr)
+	var result sql.Result
+	if count > 0 {
+		// 更新已有记录
+		result, err = tx.Exec(
+			"UPDATE meal_selections SET meal_type = ? WHERE student_id = ? AND meal_id = ?",
+			mealType, studentID, mealID,
+		)
+	} else {
+		// 插入新记录
+		result, err = tx.Exec(
+			"INSERT INTO meal_selections (student_id, meal_id, meal_type) VALUES (?, ?, ?)",
+			studentID, mealID, mealType,
+		)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	// 如果是插入新记录，获取插入的ID
+	var selectionID int64
+	if count == 0 {
+		selectionID, err = result.LastInsertId()
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		// 如果是更新记录，获取现有记录的ID
+		err = tx.QueryRow("SELECT id FROM meal_selections WHERE student_id = ? AND meal_id = ?", studentID, mealID).Scan(&selectionID)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// 提交事务
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	// 成功完成，返回选餐记录
+	return &MealSelection{
+		ID:        int(selectionID),
+		StudentID: studentID,
+		MealID:    mealID,
+		MealType:  mealType,
+		Student:   student,
+		Meal:      meal,
+	}, nil
 }
 
 // GetMealSelectionByStudentAndMeal 根据学生ID和餐ID获取选餐记录
@@ -268,150 +236,125 @@ func BatchSelectMeals(studentIDs []int, mealID int, mealType MealType) (int, err
 		return 0, err
 	}
 
-	// 最大重试次数
-	maxRetries := 3
-	var lastErr error
+	// 开始事务
+	tx, err := db.Begin()
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+
+	// 计数器
 	var count int
 
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		// 如果不是第一次尝试，等待一段时间再重试
-		if attempt > 0 {
-			backoffTime := time.Duration(300*1<<uint(attempt-1)) * time.Millisecond
-			time.Sleep(backoffTime)
-			log.Printf("批量选餐重试，第 %d 次尝试", attempt+1)
-		}
-
-		// 开始事务
-		tx, err := db.Begin()
+	// 处理每个学生
+	for _, studentID := range studentIDs {
+		// 检查学生是否存在
+		_, err := GetStudentByID(studentID)
 		if err != nil {
-			lastErr = err
-			continue
+			continue // 跳过不存在的学生
 		}
 
-		// 设置事务超时，防止长时间锁定
-		_, err = tx.Exec("PRAGMA busy_timeout = 5000")
+		// 检查是否已有选餐记录
+		var existCount int
+		err = tx.QueryRow("SELECT COUNT(*) FROM meal_selections WHERE student_id = ? AND meal_id = ?", studentID, mealID).Scan(&existCount)
 		if err != nil {
-			tx.Rollback()
-			lastErr = err
 			continue
 		}
 
-		// 计数器
-		count = 0
-
-		// 处理每个学生
-		for _, studentID := range studentIDs {
-			// 检查学生是否存在
-			_, err := GetStudentByID(studentID)
-			if err != nil {
-				continue // 跳过不存在的学生
-			}
-
-			// 检查是否已有选餐记录
-			var existCount int
-			err = tx.QueryRow("SELECT COUNT(*) FROM meal_selections WHERE student_id = ? AND meal_id = ?", studentID, mealID).Scan(&existCount)
-			if err != nil {
-				continue
-			}
-
-			if existCount > 0 {
-				// 更新已有记录
-				_, err = tx.Exec(
-					"UPDATE meal_selections SET meal_type = ? WHERE student_id = ? AND meal_id = ?",
-					mealType, studentID, mealID,
-				)
-			} else {
-				// 插入新记录
-				_, err = tx.Exec(
-					"INSERT INTO meal_selections (student_id, meal_id, meal_type) VALUES (?, ?, ?)",
-					studentID, mealID, mealType,
-				)
-			}
-
-			if err == nil {
-				count++
-			}
+		if existCount > 0 {
+			// 更新已有记录
+			_, err = tx.Exec(
+				"UPDATE meal_selections SET meal_type = ? WHERE student_id = ? AND meal_id = ?",
+				mealType, studentID, mealID,
+			)
+		} else {
+			// 插入新记录
+			_, err = tx.Exec(
+				"INSERT INTO meal_selections (student_id, meal_id, meal_type) VALUES (?, ?, ?)",
+				studentID, mealID, mealType,
+			)
 		}
 
-		// 提交事务
-		if err := tx.Commit(); err != nil {
-			lastErr = err
-			continue
+		if err == nil {
+			count++
 		}
-
-		// 如果成功批量选餐且有记录被处理，发送钉钉通知
-		if count > 0 {
-			// 启动goroutine异步发送通知
-			go func() {
-				// 收集所有相关人员的钉钉ID
-				dingTalkIDs := make([]string, 0)
-
-				for _, studentID := range studentIDs {
-					student, err := GetStudentByID(studentID)
-					if err != nil {
-						utils.LogError(fmt.Sprintf("获取学生信息失败, ID=%d: %v", studentID, err))
-						continue
-					}
-
-					// 收集学生钉钉ID
-					if student.DingTalkID != "" && student.DingTalkID != "0" {
-						dingTalkIDs = append(dingTalkIDs, student.DingTalkID)
-					}
-
-					// 获取并收集家长钉钉ID
-					parents, err := GetParentsByStudentID(student.ID)
-					if err != nil {
-						utils.LogError(fmt.Sprintf("获取学生ID=%d的家长信息失败: %v", student.ID, err))
-						continue
-					}
-
-					for _, parent := range parents {
-						if parent != "" && parent != "0" {
-							dingTalkIDs = append(dingTalkIDs, parent)
-						}
-					}
-				}
-
-				// 如果没有需要通知的人，直接返回
-				if len(dingTalkIDs) == 0 {
-					utils.LogError("没有找到需要通知的学生或家长")
-					return
-				}
-
-				// 获取配置的域名
-				domain := config.Get().Website.Domain
-
-				// 构建通知消息
-				title := "选餐提醒"
-				var mealTypeStr string
-				if mealType == MealTypeA {
-					mealTypeStr = "A餐"
-				} else {
-					mealTypeStr = "B餐"
-				}
-
-				markdown := fmt.Sprintf("## 选餐通知\n\n# 亲爱的家长/同学，您的餐食：%s已由管理员代选为%s，详情请查看选餐系统。", meal.Name, mealTypeStr)
-
-				card := utils.ActionCardMessage{
-					Title:       title,
-					Markdown:    markdown,
-					SingleTitle: "查看详情",
-					SingleURL:   fmt.Sprintf("%s/dingtalk_auth", domain),
-				}
-
-				// 发送通知
-				err = utils.SendDingTalkActionCard(dingTalkIDs, card)
-				if err != nil {
-					utils.LogError(fmt.Sprintf("发送批量选餐通知失败: %v", err))
-				}
-			}()
-		}
-
-		// 成功完成，返回处理的记录数
-		return count, nil
 	}
 
-	return 0, fmt.Errorf("批量选餐失败，已重试 %d 次: %v", maxRetries, lastErr)
+	// 提交事务
+	if err := tx.Commit(); err != nil {
+		return 0, err
+	}
+
+	// 如果成功批量选餐且有记录被处理，发送钉钉通知
+	if count > 0 {
+		// 启动goroutine异步发送通知
+		go func() {
+			// 收集所有相关人员的钉钉ID
+			dingTalkIDs := make([]string, 0)
+
+			for _, studentID := range studentIDs {
+				student, err := GetStudentByID(studentID)
+				if err != nil {
+					utils.LogError(fmt.Sprintf("获取学生信息失败, ID=%d: %v", studentID, err))
+					continue
+				}
+
+				// 收集学生钉钉ID
+				if student.DingTalkID != "" && student.DingTalkID != "0" {
+					dingTalkIDs = append(dingTalkIDs, student.DingTalkID)
+				}
+
+				// 获取并收集家长钉钉ID
+				parents, err := GetParentsByStudentID(student.ID)
+				if err != nil {
+					utils.LogError(fmt.Sprintf("获取学生ID=%d的家长信息失败: %v", student.ID, err))
+					continue
+				}
+
+				for _, parent := range parents {
+					if parent != "" && parent != "0" {
+						dingTalkIDs = append(dingTalkIDs, parent)
+					}
+				}
+			}
+
+			// 如果没有需要通知的人，直接返回
+			if len(dingTalkIDs) == 0 {
+				utils.LogError("没有找到需要通知的学生或家长")
+				return
+			}
+
+			// 获取配置的域名
+			domain := config.Get().Website.Domain
+
+			// 构建通知消息
+			title := "选餐提醒"
+			var mealTypeStr string
+			if mealType == MealTypeA {
+				mealTypeStr = "A餐"
+			} else {
+				mealTypeStr = "B餐"
+			}
+
+			markdown := fmt.Sprintf("## 选餐通知\n\n# 亲爱的家长/同学，您的餐食：%s已由管理员代选为%s，详情请查看选餐系统。", meal.Name, mealTypeStr)
+
+			card := utils.ActionCardMessage{
+				Title:       title,
+				Markdown:    markdown,
+				SingleTitle: "查看详情",
+				SingleURL:   fmt.Sprintf("%s/dingtalk_auth", domain),
+			}
+
+			// 发送通知
+			err = utils.SendDingTalkActionCard(dingTalkIDs, card)
+			if err != nil {
+				utils.LogError(fmt.Sprintf("发送批量选餐通知失败: %v", err))
+			}
+		}()
+	}
+
+	// 成功完成，返回处理的记录数
+	return count, nil
 }
 
 // GetStudentCurrentSelection 获取学生当前日期的选餐

@@ -43,6 +43,18 @@ func Initialize() error {
 		return fmt.Errorf("failed to ping database: %v", err)
 	}
 
+	// 设置 WAL 模式
+	_, err = db.Exec("PRAGMA journal_mode=WAL;")
+	if err != nil {
+		log.Fatalf("设置 WAL 模式失败: %v", err)
+	}
+
+	// 设置 busy timeout 为 10 秒
+	_, err = db.Exec("PRAGMA busy_timeout=10000;")
+	if err != nil {
+		log.Fatalf("设置 busy_timeout 失败: %v", err)
+	}
+
 	// 创建数据库表
 	if err = createTables(); err != nil {
 		return fmt.Errorf("failed to create tables: %v", err)

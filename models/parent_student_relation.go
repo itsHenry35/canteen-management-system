@@ -9,6 +9,7 @@ type ParentStudentRelation struct {
 	ID          int    `json:"id"`
 	ParentID    string `json:"parent_id"`    // 家长钉钉ID
 	StudentID   string `json:"student_id"`   // 学生ID
+	Relation    string `json:"relation"`     // 关系描述
 	StudentName string `json:"student_name"` // 学生姓名
 }
 
@@ -19,7 +20,7 @@ func GetStudentsByParentID(parentID string) ([]*ParentStudentRelation, error) {
 
 	// 执行查询
 	rows, err := db.Query(`
-        SELECT psr.id, psr.parent_id, psr.student_id, s.full_name
+        SELECT psr.id, psr.parent_id, psr.student_id, psr.relation, s.full_name
         FROM parent_student_relations psr
         JOIN students s ON psr.student_id = s.dingtalk_id
         WHERE psr.parent_id = ?
@@ -33,7 +34,7 @@ func GetStudentsByParentID(parentID string) ([]*ParentStudentRelation, error) {
 	var relations []*ParentStudentRelation
 	for rows.Next() {
 		var relation ParentStudentRelation
-		err := rows.Scan(&relation.ID, &relation.ParentID, &relation.StudentID, &relation.StudentName)
+		err := rows.Scan(&relation.ID, &relation.ParentID, &relation.StudentID, &relation.Relation, &relation.StudentName)
 		if err != nil {
 			return nil, err
 		}
@@ -44,14 +45,14 @@ func GetStudentsByParentID(parentID string) ([]*ParentStudentRelation, error) {
 }
 
 // SaveParentStudentRelation 保存家长学生关系
-func SaveParentStudentRelation(parentID string, studentID string) error {
+func SaveParentStudentRelation(parentID string, studentID string, relation string) error {
 	// 获取数据库连接
 	db := database.GetDB()
 
 	// 检查关系是否已存在
 	var count int
-	err := db.QueryRow("SELECT COUNT(*) FROM parent_student_relations WHERE parent_id = ? AND student_id = ?",
-		parentID, studentID).Scan(&count)
+	err := db.QueryRow("SELECT COUNT(*) FROM parent_student_relations WHERE parent_id = ? AND student_id = ? AND relation = ?",
+		parentID, studentID, relation).Scan(&count)
 	if err != nil {
 		return err
 	}
@@ -63,8 +64,8 @@ func SaveParentStudentRelation(parentID string, studentID string) error {
 
 	// 插入新的关系
 	_, err = db.Exec(
-		"INSERT INTO parent_student_relations (parent_id, student_id) VALUES (?, ?)",
-		parentID, studentID,
+		"INSERT INTO parent_student_relations (parent_id, student_id, relation) VALUES (?, ?, ?)",
+		parentID, studentID, relation,
 	)
 
 	return err

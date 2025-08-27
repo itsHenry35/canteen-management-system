@@ -87,7 +87,7 @@ func RebuildParentStudentMapping() error {
 	addMappingLog("开始重建家长-学生映射关系")
 
 	// 获取所有班级ID
-	classIDs, err := utils.GetAllClassIDs()
+	classIDs, err := utils.GetAllClassIDs(addMappingLog)
 	if err != nil {
 		errMsg := fmt.Sprintf("获取班级列表失败: %v", err)
 		addMappingLog(errMsg)
@@ -147,7 +147,7 @@ func RebuildParentStudentMapping() error {
 			// 保存获取到的关系
 			for _, rel := range relations {
 				// 保存关系到数据库
-				err := models.SaveParentStudentRelation(rel.GuardianUserID, rel.StudentUserId)
+				err := models.SaveParentStudentRelation(rel.GuardianUserID, rel.StudentUserId, rel.Relation)
 				if err != nil {
 					errMsg := fmt.Sprintf("保存关系失败 (家长: %s, 学生: %s): %v",
 						rel.GuardianUserID, rel.StudentUserId, err)

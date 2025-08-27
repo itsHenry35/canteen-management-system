@@ -24,7 +24,8 @@ CREATE TABLE IF NOT EXISTS parent_student_relations (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     parent_id TEXT NOT NULL,
     student_id TEXT NOT NULL,
-    UNIQUE(parent_id, student_id)
+    relation TEXT NOT NULL,
+    UNIQUE(parent_id, student_id, relation)
 );
 
 -- 餐表
