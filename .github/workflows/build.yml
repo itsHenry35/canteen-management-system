@@ -1,0 +1,62 @@
+name: Build Backend with Frontend
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout 后端仓库
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      # 2. 下载前端 zip
+      - name: Download frontend build
+        run: |
+          curl -L -o canteen-frontend-build.zip https://nightly.link/itsHenry35/canteen-management-system-frontend/workflows/build/master/canteen-frontend-build.zip
+
+      # 3. 安装 unzip
+      - name: Install unzip
+        run: sudo apt-get update && sudo apt-get install -y unzip
+
+      # 4. 解压到 static/
+      - name: Unzip frontend
+        run: |
+          mkdir -p static
+          unzip -o canteen-frontend-build.zip -d static
+
+      # 5. Setup Go
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.24
+
+      # 6. 安装交叉编译所需工具
+      - name: Install cross-compilers
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-mingw-w64-x86-64 gcc
+
+      # 7. Build Linux binary
+      - name: Build Linux binary
+        run: |
+          mkdir -p bin
+          CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -o bin/canteen-management-system-linux main.go
+
+      # 8. Build Windows binary
+      - name: Build Windows binary
+        run: |
+          mkdir -p bin
+          CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc GOOS=windows GOARCH=amd64 go build -o bin/canteen-management-system-windows.exe main.go
+
+      # 9. 上传构建产物
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: canteen-management-system
+          path: bin/
