@@ -26,6 +26,7 @@ type JWTClaims struct {
 	UserID   int      `json:"user_id"`
 	Username string   `json:"username"`
 	Role     UserRole `json:"role"`
+	Relation string   `json:"relation"`
 	jwt.StandardClaims
 }
 
@@ -39,7 +40,7 @@ type StudentData struct {
 }
 
 // GenerateToken 生成 JWT 令牌
-func GenerateToken(id int, username string, role UserRole) (string, error) {
+func GenerateToken(id int, username string, role UserRole, relation string) (string, error) {
 	// 获取 JWT 密钥
 	cfg := config.Get()
 	jwtSecret := []byte(cfg.Security.JWTSecret)
@@ -52,6 +53,7 @@ func GenerateToken(id int, username string, role UserRole) (string, error) {
 		UserID:   id,
 		Username: username,
 		Role:     role,
+		Relation: relation,
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: expirationTime.Unix(),
 		},
@@ -101,20 +103,21 @@ func Login(username, password string) (string, interface{}, error) {
 	}
 
 	var role UserRole
-	if user.Role == models.RoleAdmin {
+	switch user.Role {
+	case models.RoleAdmin:
 		role = RoleAdmin
-	} else if user.Role == models.RoleCanteenA {
+	case models.RoleCanteenA:
 		role = RoleCanteenA
-	} else if user.Role == models.RoleCanteenB {
+	case models.RoleCanteenB:
 		role = RoleCanteenB
-	} else if user.Role == models.RoleCanteenTest {
+	case models.RoleCanteenTest:
 		role = RoleCanteenTest
-	} else {
+	default:
 		return "", nil, errors.New("用户类型无效")
 	}
 
 	// 生成 token
-	token, err := GenerateToken(user.ID, user.Username, role)
+	token, err := GenerateToken(user.ID, user.Username, role, "")
 	if err != nil {
 		return "", nil, err
 	}
@@ -138,7 +141,7 @@ func DingTalkLogin(code string) (string, interface{}, error) {
 	student, err := models.GetStudentByDingTalkID(userInfo.UserID)
 	if err == nil {
 		// 学生找到，生成学生 token
-		token, err := GenerateToken(student.ID, student.Username, RoleStudent)
+		token, err := GenerateToken(student.ID, student.Username, RoleStudent, "本人")
 		if err != nil {
 			return "", nil, err
 		}
@@ -157,7 +160,7 @@ func DingTalkLogin(code string) (string, interface{}, error) {
 		}
 
 		// 生成 token
-		token, err := GenerateToken(user.ID, user.Username, role)
+		token, err := GenerateToken(user.ID, user.Username, role, "")
 		if err != nil {
 			return "", nil, err
 		}
@@ -182,7 +185,7 @@ func DingTalkLogin(code string) (string, interface{}, error) {
 		}
 
 		// 为每个学生生成token
-		token, err := GenerateToken(student.ID, student.Username, RoleStudent)
+		token, err := GenerateToken(student.ID, student.Username, RoleStudent, relation.Relation)
 		if err != nil {
 			continue
 		}

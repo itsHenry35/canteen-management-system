@@ -45,6 +45,8 @@ CREATE TABLE IF NOT EXISTS meal_selections (
     student_id INTEGER NOT NULL,
     meal_id INTEGER NOT NULL,
     meal_type TEXT NOT NULL,
+    updated_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    operator TEXT NOT NULL,
     FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE,
     FOREIGN KEY (meal_id) REFERENCES meals(id) ON DELETE CASCADE,
     UNIQUE(student_id, meal_id)

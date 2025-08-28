@@ -79,13 +79,14 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	resp.User.ID = user.ID
 	resp.User.Username = user.Username
 	resp.User.FullName = user.FullName
-	if user.Role == models.RoleAdmin {
+	switch user.Role {
+	case models.RoleAdmin:
 		resp.User.Role = "admin"
-	} else if user.Role == models.RoleCanteenA {
+	case models.RoleCanteenA:
 		resp.User.Role = "canteen_a"
-	} else if user.Role == models.RoleCanteenB {
+	case models.RoleCanteenB:
 		resp.User.Role = "canteen_b"
-	} else if user.Role == models.RoleCanteenTest {
+	case models.RoleCanteenTest:
 		resp.User.Role = "canteen_test"
 	}
 	// 返回响应

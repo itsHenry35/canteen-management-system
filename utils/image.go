@@ -9,7 +9,11 @@ import (
 )
 
 // SaveBase64Image 保存Base64编码的图片
-func SaveBase64Image(base64Data, directory, prefix string, timestamp interface{}) string {
+func SaveBase64Image(base64Data, directory, prefix string, timestamp interface{}) (string, error) {
+	// 未传入图片
+	if base64Data == "" {
+		return "", nil
+	}
 	// 移除可能的Base64前缀
 	encodedData := base64Data
 	if idx := strings.Index(base64Data, ";base64,"); idx > 0 {
@@ -19,12 +23,12 @@ func SaveBase64Image(base64Data, directory, prefix string, timestamp interface{}
 	// 解码Base64数据
 	decodedData, err := base64.StdEncoding.DecodeString(encodedData)
 	if err != nil {
-		return ""
+		return "", err
 	}
 
 	// 创建目录
 	if err := os.MkdirAll(directory, 0755); err != nil {
-		return ""
+		return "", err
 	}
 
 	// 创建文件名
@@ -33,8 +37,8 @@ func SaveBase64Image(base64Data, directory, prefix string, timestamp interface{}
 
 	// 保存图片
 	if err := os.WriteFile(filePath, decodedData, 0644); err != nil {
-		return ""
+		return "", err
 	}
 
-	return fileName
+	return fileName, nil
 }

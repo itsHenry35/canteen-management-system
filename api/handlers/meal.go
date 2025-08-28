@@ -101,12 +101,14 @@ func CreateMeal(w http.ResponseWriter, r *http.Request) {
 
 	// 保存图片
 	timestamp := time.Now().Unix()
-	imgFileName := utils.SaveBase64Image(req.Image, mealImgDir, "meal", timestamp)
-	if imgFileName == "" {
-		utils.ResponseError(w, http.StatusBadRequest, "保存图片失败")
+	imgPath, err := utils.SaveBase64Image(req.Image, mealImgDir, "meal", timestamp)
+	if err != nil {
+		utils.ResponseError(w, http.StatusBadRequest, "保存图片失败: "+err.Error())
 		return
 	}
-	imgPath := filepath.Join("/static/images", imgFileName)
+	if imgPath != "" {
+		imgPath = filepath.Join("/static/images", imgPath)
+	}
 
 	// 创建餐
 	meal, err := models.CreateMeal(req.Name, req.SelectionStartTime, req.SelectionEndTime, req.EffectiveStartDate, req.EffectiveEndDate, imgPath)
@@ -166,12 +168,15 @@ func UpdateMeal(w http.ResponseWriter, r *http.Request) {
 
 		// 保存新图片
 		timestamp := time.Now().Unix()
-		imgFileName := utils.SaveBase64Image(req.Image, mealImgDir, "meal", timestamp)
-		if imgFileName == "" {
-			utils.ResponseError(w, http.StatusBadRequest, "保存图片失败")
+		newImgPath, err := utils.SaveBase64Image(req.Image, mealImgDir, "meal", timestamp)
+		if err != nil {
+			utils.ResponseError(w, http.StatusBadRequest, "保存图片失败: "+err.Error())
 			return
 		}
-		newImgPath := filepath.Join("/static/images", imgFileName)
+
+		if newImgPath != "" {
+			newImgPath = filepath.Join("/static/images", newImgPath)
+		}
 
 		// 删除旧图片
 		if meal.ImagePath != "" {
@@ -264,9 +269,10 @@ func GetMealSelections(w http.ResponseWriter, r *http.Request) {
 	for _, selection := range selections {
 		selectedStudentIDs[selection.StudentID] = true
 
-		if selection.MealType == models.MealTypeA {
+		switch selection.MealType {
+		case models.MealTypeA:
 			typeAStudentIDs = append(typeAStudentIDs, selection.StudentID)
-		} else if selection.MealType == models.MealTypeB {
+		case models.MealTypeB:
 			typeBStudentIDs = append(typeBStudentIDs, selection.StudentID)
 		}
 	}
@@ -309,15 +315,24 @@ func StudentSelectMeal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 获取学生关系
+	relation, ok := middlewares.GetRelationFromContext(r)
+	if !ok {
+		relation = ""
+	}
+
 	// 创建选餐记录
-	selection, err := models.CreateMealSelection(studentID, req.MealID, req.MealType, true)
+	_, err := models.CreateMealSelection(studentID, req.MealID, req.MealType, true, relation)
 	if err != nil {
 		utils.ResponseError(w, http.StatusInternalServerError, "选餐失败: "+err.Error())
 		return
 	}
 
 	// 返回响应
-	utils.ResponseOK(w, selection)
+	utils.ResponseOK(w, map[string]interface{}{
+		"success": true,
+		"message": "选餐成功",
+	})
 }
 
 // BatchSelectMeals 批量选餐
@@ -335,8 +350,14 @@ func BatchSelectMeals(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 获取管理员用户名
+	operatorname, ok := middlewares.GetFullnameFromContext(r)
+	if !ok {
+		operatorname = "系统管理员"
+	}
+
 	// 批量选餐
-	count, err := models.BatchSelectMeals(req.StudentIDs, req.MealID, req.MealType)
+	count, err := models.BatchSelectMeals(req.StudentIDs, req.MealID, req.MealType, operatorname)
 	if err != nil {
 		utils.ResponseError(w, http.StatusInternalServerError, "批量选餐失败: "+err.Error())
 		return
@@ -423,7 +444,11 @@ func ImportSelection(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 创建选餐记录
-	_, err = models.CreateMealSelection(studentID, req.MealID, req.MealType, false)
+	operatorname, ok := middlewares.GetFullnameFromContext(r)
+	if !ok {
+		operatorname = "系统管理员"
+	}
+	_, err = models.CreateMealSelection(studentID, req.MealID, req.MealType, false, operatorname)
 	if err != nil {
 		utils.ResponseError(w, http.StatusInternalServerError, "选餐失败: "+err.Error())
 		return
@@ -434,19 +459,6 @@ func ImportSelection(w http.ResponseWriter, r *http.Request) {
 		"success": true,
 		"message": "导入选餐成功",
 	})
-}
-
-// GetCurrentSelectableMeals 获取当前可选餐
-func GetCurrentSelectableMeals(w http.ResponseWriter, _ *http.Request) {
-	// 获取当前可选餐
-	meals, err := models.GetCurrentSelectableMeals()
-	if err != nil {
-		utils.ResponseError(w, http.StatusInternalServerError, "获取可选餐失败")
-		return
-	}
-
-	// 返回响应
-	utils.ResponseOK(w, meals)
 }
 
 // CleanupExpiredMeals 清理过期的餐
@@ -460,37 +472,6 @@ func CleanupExpiredMeals(w http.ResponseWriter, _ *http.Request) {
 
 	// 返回响应
 	utils.ResponseOK(w, map[string]bool{"success": true})
-}
-
-// GetStudentCurrentSelection 获取学生当前日期的选餐
-func GetStudentCurrentSelection(w http.ResponseWriter, r *http.Request) {
-	// 从上下文获取学生ID
-	studentID, ok := middlewares.GetUserIDFromContext(r)
-	if !ok {
-		utils.ResponseError(w, http.StatusUnauthorized, "未授权")
-		return
-	}
-
-	// 获取学生当前日期的选餐
-	selection, err := models.GetStudentCurrentSelection(studentID)
-	if err != nil {
-		utils.ResponseError(w, http.StatusInternalServerError, "获取当前选餐失败")
-		return
-	}
-
-	// 判断是否有选餐
-	if selection == nil {
-		utils.ResponseOK(w, map[string]interface{}{
-			"has_selection": false,
-		})
-		return
-	}
-
-	// 返回响应
-	utils.ResponseOK(w, map[string]interface{}{
-		"has_selection": true,
-		"selection":     selection,
-	})
 }
 
 // NotifyUnselectedStudents 手动提醒未选餐学生

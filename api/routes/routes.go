@@ -101,10 +101,8 @@ func SetupRouter(staticFS fs.FS) *mux.Router {
 	studentAPI.Use(middlewares.RoleMiddleware(services.RoleStudent))
 
 	// 选餐
-	studentAPI.HandleFunc("/meals/current", handlers.GetCurrentSelectableMeals).Methods("GET")
 	studentAPI.HandleFunc("/selection", handlers.GetStudentMealSelections).Methods("GET")
 	studentAPI.HandleFunc("/selection", handlers.StudentSelectMeal).Methods("POST")
-	studentAPI.HandleFunc("/selection/current", handlers.GetStudentCurrentSelection).Methods("GET")
 
 	// 静态文件服务
 	rootStaticFiles := []string{

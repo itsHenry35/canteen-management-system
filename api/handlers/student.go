@@ -189,8 +189,8 @@ func GetStudentMealSelections(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 获取当前可选餐
-	selectableMeals, err := models.GetCurrentSelectableMeals()
+	// 获取当前与未来所有餐
+	currentMeals, futureMeals, err := models.GetCurrentAndFutureMeals()
 	if err != nil {
 		utils.ResponseError(w, http.StatusInternalServerError, "获取可选餐失败")
 		return
@@ -208,7 +208,7 @@ func GetStudentMealSelections(w http.ResponseWriter, r *http.Request) {
 
 		// 检查这个餐是否在当前可选餐列表中
 		selectable := false
-		for _, sMeal := range selectableMeals {
+		for _, sMeal := range currentMeals {
 			if sMeal.ID == meal.ID {
 				selectable = true
 				break
@@ -218,6 +218,8 @@ func GetStudentMealSelections(w http.ResponseWriter, r *http.Request) {
 		responseSelections = append(responseSelections, map[string]interface{}{
 			"meal_id":              meal.ID,
 			"meal_type":            selection.MealType,
+			"operator":             selection.Operator,
+			"updated_at":           selection.UpdatedAt,
 			"selectable":           selectable,
 			"id":                   meal.ID,
 			"name":                 meal.Name,
@@ -230,7 +232,7 @@ func GetStudentMealSelections(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 添加可选但尚未选择的餐
-	for _, meal := range selectableMeals {
+	for _, meal := range currentMeals {
 		// 检查这个餐是否已经在响应中
 		exists := false
 		for _, rs := range responseSelections {
@@ -245,6 +247,32 @@ func GetStudentMealSelections(w http.ResponseWriter, r *http.Request) {
 				"meal_id":              meal.ID,
 				"meal_type":            nil,
 				"selectable":           true,
+				"id":                   meal.ID,
+				"name":                 meal.Name,
+				"selection_start_time": meal.SelectionStartTime,
+				"selection_end_time":   meal.SelectionEndTime,
+				"effective_start_date": meal.EffectiveStartDate,
+				"effective_end_date":   meal.EffectiveEndDate,
+				"image_path":           meal.ImagePath,
+			})
+		}
+	}
+
+	// 添加未来可选餐
+	for _, meal := range futureMeals {
+		// 检查这个餐是否已经在响应中
+		exists := false
+		for _, rs := range responseSelections {
+			if rs["id"].(int) == meal.ID {
+				exists = true
+				break
+			}
+		}
+		if !exists {
+			responseSelections = append(responseSelections, map[string]interface{}{
+				"meal_id":              meal.ID,
+				"meal_type":            nil,
+				"selectable":           false,
 				"id":                   meal.ID,
 				"name":                 meal.Name,
 				"selection_start_time": meal.SelectionStartTime,
@@ -293,9 +321,10 @@ func GetStudentSelections(w http.ResponseWriter, _ *http.Request) {
 		// 统计该餐的选餐情况
 		var typeACount, typeBCount int
 		for _, selection := range selections {
-			if selection.MealType == models.MealTypeA {
+			switch selection.MealType {
+			case models.MealTypeA:
 				typeACount++
-			} else if selection.MealType == models.MealTypeB {
+			case models.MealTypeB:
 				typeBCount++
 			}
 		}

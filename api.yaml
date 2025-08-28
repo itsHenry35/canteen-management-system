@@ -959,44 +959,18 @@ paths:
                   - type: object
                     properties:
                       data:
-                        $ref: '#/components/schemas/MealSelection'
+                        type: object
+                        properties:
+                          success:
+                            type: boolean
+                            example: true
+                          message:
+                            type: string
+                            example: "选餐成功"
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
-  
-  /api/student/selection/current:
-    get:
-      tags:
-        - Student
-      summary: 获取学生当前选餐
-      description: 获取学生当前日期有效的选餐记录
-      security:
-        - bearerAuth: []
-      responses:
-        '200':
-          description: 获取成功
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiResponse'
-                  - type: object
-                    properties:
-                      data:
-                        oneOf:
-                          - type: object
-                            properties:
-                              has_selection:
-                                type: boolean
-                                example: false
-                          - type: object
-                            properties:
-                              has_selection:
-                                type: boolean
-                                example: true
-                              selection:
-                                $ref: '#/components/schemas/MealSelection'
 
 components:
   securitySchemes:
@@ -1499,30 +1473,6 @@ components:
           example: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD..."
     
     # 选餐相关
-    MealSelection:
-      type: object
-      properties:
-        id:
-          type: integer
-          example: 1
-        student_id:
-          type: integer
-          example: 1
-        meal_id:
-          type: integer
-          example: 1
-        meal_type:
-          $ref: '#/components/schemas/MealType'
-        student:
-          $ref: '#/components/schemas/Student'
-        meal:
-          $ref: '#/components/schemas/Meal'
-      required:
-        - id
-        - student_id
-        - meal_id
-        - meal_type
-    
     MealSelectionRequest:
       type: object
       required:
@@ -1616,6 +1566,15 @@ components:
         image_path:
           type: string
           example: "/static/images/meal_1702123456.jpg"
+        operator:
+          type: string
+          description: 操作人
+          example: "admin"
+        updated_at:
+          type: string
+          format: date-time
+          description: 更新时间
+          example: "2023-01-01T12:00:00Z"
       required:
         - meal_id
         - selectable
@@ -1626,7 +1585,9 @@ components:
         - effective_start_date
         - effective_end_date
         - image_path
-    
+        - operator
+        - updated_at
+
     MealSelectionStats:
       type: object
       properties:

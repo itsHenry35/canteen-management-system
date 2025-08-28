@@ -13,16 +13,18 @@ import (
 
 // MealSelection 学生选餐记录
 type MealSelection struct {
-	ID        int      `json:"id"`
-	StudentID int      `json:"student_id"`
-	MealID    int      `json:"meal_id"`
-	MealType  MealType `json:"meal_type"`
-	Student   *Student `json:"student,omitempty"`
-	Meal      *Meal    `json:"meal,omitempty"`
+	ID        int       `json:"id"`
+	StudentID int       `json:"student_id"`
+	MealID    int       `json:"meal_id"`
+	MealType  MealType  `json:"meal_type"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Operator  string    `json:"operator"`
+	Student   *Student  `json:"student,omitempty"`
+	Meal      *Meal     `json:"meal,omitempty"`
 }
 
 // CreateMealSelection 创建学生选餐记录
-func CreateMealSelection(studentID, mealID int, mealType MealType, validateMealTime bool) (*MealSelection, error) {
+func CreateMealSelection(studentID, mealID int, mealType MealType, validateMealTime bool, operator string) (*MealSelection, error) {
 	// 获取数据库连接
 	db := database.GetDB()
 
@@ -65,14 +67,14 @@ func CreateMealSelection(studentID, mealID int, mealType MealType, validateMealT
 	if count > 0 {
 		// 更新已有记录
 		result, err = tx.Exec(
-			"UPDATE meal_selections SET meal_type = ? WHERE student_id = ? AND meal_id = ?",
-			mealType, studentID, mealID,
+			"UPDATE meal_selections SET meal_type = ?, updated_time = CURRENT_TIMESTAMP, operator = ? WHERE student_id = ? AND meal_id = ?",
+			mealType, operator, studentID, mealID,
 		)
 	} else {
 		// 插入新记录
 		result, err = tx.Exec(
-			"INSERT INTO meal_selections (student_id, meal_id, meal_type) VALUES (?, ?, ?)",
-			studentID, mealID, mealType,
+			"INSERT INTO meal_selections (student_id, meal_id, meal_type, operator) VALUES (?, ?, ?, ?)",
+			studentID, mealID, mealType, operator,
 		)
 	}
 
@@ -119,10 +121,10 @@ func GetMealSelectionByStudentAndMeal(studentID, mealID int) (*MealSelection, er
 	// 查询选餐记录
 	var selection MealSelection
 	err := db.QueryRow(
-		"SELECT id, student_id, meal_id, meal_type FROM meal_selections WHERE student_id = ? AND meal_id = ?",
+		"SELECT id, student_id, meal_id, meal_type, updated_time, operator FROM meal_selections WHERE student_id = ? AND meal_id = ?",
 		studentID, mealID,
 	).Scan(
-		&selection.ID, &selection.StudentID, &selection.MealID, &selection.MealType,
+		&selection.ID, &selection.StudentID, &selection.MealID, &selection.MealType, &selection.UpdatedAt, &selection.Operator,
 	)
 
 	if err != nil {
@@ -154,7 +156,7 @@ func GetMealSelectionsByStudent(studentID int) ([]*MealSelection, error) {
 
 	// 查询学生的所有选餐记录
 	rows, err := db.Query(
-		"SELECT id, student_id, meal_id, meal_type FROM meal_selections WHERE student_id = ?",
+		"SELECT id, student_id, meal_id, meal_type, updated_time, operator FROM meal_selections WHERE student_id = ?",
 		studentID,
 	)
 	if err != nil {
@@ -167,7 +169,7 @@ func GetMealSelectionsByStudent(studentID int) ([]*MealSelection, error) {
 	for rows.Next() {
 		var selection MealSelection
 		err := rows.Scan(
-			&selection.ID, &selection.StudentID, &selection.MealID, &selection.MealType,
+			&selection.ID, &selection.StudentID, &selection.MealID, &selection.MealType, &selection.UpdatedAt, &selection.Operator,
 		)
 		if err != nil {
 			return nil, err
@@ -226,7 +228,7 @@ func GetMealSelectionsByMeal(mealID int) ([]*MealSelection, error) {
 }
 
 // BatchSelectMeals 批量为学生选餐
-func BatchSelectMeals(studentIDs []int, mealID int, mealType MealType) (int, error) {
+func BatchSelectMeals(studentIDs []int, mealID int, mealType MealType, operator string) (int, error) {
 	// 获取数据库连接
 	db := database.GetDB()
 
@@ -264,14 +266,14 @@ func BatchSelectMeals(studentIDs []int, mealID int, mealType MealType) (int, err
 		if existCount > 0 {
 			// 更新已有记录
 			_, err = tx.Exec(
-				"UPDATE meal_selections SET meal_type = ? WHERE student_id = ? AND meal_id = ?",
-				mealType, studentID, mealID,
+				"UPDATE meal_selections SET meal_type = ?, updated_time = CURRENT_TIMESTAMP, operator = ? WHERE student_id = ? AND meal_id = ?",
+				mealType, operator, studentID, mealID,
 			)
 		} else {
 			// 插入新记录
 			_, err = tx.Exec(
-				"INSERT INTO meal_selections (student_id, meal_id, meal_type) VALUES (?, ?, ?)",
-				studentID, mealID, mealType,
+				"INSERT INTO meal_selections (student_id, meal_id, meal_type, operator) VALUES (?, ?, ?, ?)",
+				studentID, mealID, mealType, operator,
 			)
 		}
 

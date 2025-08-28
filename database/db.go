@@ -112,8 +112,8 @@ func setupInitialSystem() error {
 
 	// 插入管理员用户
 	_, err = db.Exec(
-		"INSERT INTO users (username, password, full_name, role) VALUES (?, ?, ?, ?)",
-		"admin", string(hashedPassword), "系统管理员", "admin",
+		"INSERT INTO users (username, password, full_name, role, dingtalk_id) VALUES (?, ?, ?, ?, ?)",
+		"admin", string(hashedPassword), "系统管理员", "admin", "0",
 	)
 	if err != nil {
 		return fmt.Errorf("failed to insert admin user: %v", err)

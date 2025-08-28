@@ -44,7 +44,7 @@ func CreateMeal(name string, selectionStartTime, selectionEndTime, effectiveStar
 	// 插入餐数据
 	result, err := tx.Exec(
 		"INSERT INTO meals (name, selection_start_time, selection_end_time, effective_start_date, effective_end_date, image_path) VALUES (?, ?, ?, ?, ?, ?)",
-		name, selectionStartTime, selectionEndTime, effectiveStartDate, effectiveEndDate, imagePath,
+		name, selectionStartTime.UTC(), selectionEndTime.UTC(), effectiveStartDate.UTC(), effectiveEndDate.UTC(), imagePath,
 	)
 	if err != nil {
 		return nil, err
@@ -127,36 +127,56 @@ func GetAllMeals() ([]*Meal, error) {
 	return meals, nil
 }
 
-// GetCurrentSelectableMeals 获取当前可以选择的餐
-func GetCurrentSelectableMeals() ([]*Meal, error) {
+// GetCurrentAndFutureMeals 获取当前与未来的餐
+func GetCurrentAndFutureMeals() ([]*Meal, []*Meal, error) {
 	// 获取数据库连接
 	db := database.GetDB()
 
-	// 查询当前可以选择的餐
-	now := time.Now()
+	// 查询当前可选餐
 	rows, err := db.Query(
-		"SELECT id, name, selection_start_time, selection_end_time, effective_start_date, effective_end_date, image_path FROM meals WHERE selection_start_time <= ? AND selection_end_time >= ? ORDER BY effective_start_date",
-		now, now,
+		"SELECT id, name, selection_start_time, selection_end_time, effective_start_date, effective_end_date, image_path FROM meals WHERE selection_start_time <= CURRENT_TIMESTAMP AND selection_end_time >= CURRENT_TIMESTAMP ORDER BY effective_start_date",
 	)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer rows.Close()
 
 	// 处理结果
-	var meals []*Meal
+	var currentMeals []*Meal
 	for rows.Next() {
 		var meal Meal
 		err := rows.Scan(
 			&meal.ID, &meal.Name, &meal.SelectionStartTime, &meal.SelectionEndTime, &meal.EffectiveStartDate, &meal.EffectiveEndDate, &meal.ImagePath,
 		)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		meals = append(meals, &meal)
+		currentMeals = append(currentMeals, &meal)
 	}
 
-	return meals, nil
+	// 查询未来可选餐
+	rows, err = db.Query(
+		"SELECT id, name, selection_start_time, selection_end_time, effective_start_date, effective_end_date, image_path FROM meals WHERE selection_start_time > CURRENT_TIMESTAMP ORDER BY effective_start_date",
+	)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer rows.Close()
+
+	// 处理结果
+	var futureMeals []*Meal
+	for rows.Next() {
+		var meal Meal
+		err := rows.Scan(
+			&meal.ID, &meal.Name, &meal.SelectionStartTime, &meal.SelectionEndTime, &meal.EffectiveStartDate, &meal.EffectiveEndDate, &meal.ImagePath,
+		)
+		if err != nil {
+			return nil, nil, err
+		}
+		futureMeals = append(futureMeals, &meal)
+	}
+
+	return currentMeals, futureMeals, nil
 }
 
 // UpdateMeal 更新餐
@@ -172,7 +192,7 @@ func UpdateMeal(meal *Meal) error {
 	// 更新餐数据
 	_, err := db.Exec(
 		"UPDATE meals SET name = ?, selection_start_time = ?, selection_end_time = ?, effective_start_date = ?, effective_end_date = ?, image_path = ? WHERE id = ?",
-		meal.Name, meal.SelectionStartTime, meal.SelectionEndTime, meal.EffectiveStartDate, meal.EffectiveEndDate, meal.ImagePath, meal.ID,
+		meal.Name, meal.SelectionStartTime.UTC(), meal.SelectionEndTime.UTC(), meal.EffectiveStartDate.UTC(), meal.EffectiveEndDate.UTC(), meal.ImagePath, meal.ID,
 	)
 
 	return err
@@ -450,13 +470,13 @@ func BatchSelectMealsRandomly(mealID int) (int, error) {
 	groupB := unselectedStudentIDs[midPoint:]
 
 	// 批量选A餐
-	countA, err := BatchSelectMeals(groupA, mealID, MealTypeA)
+	countA, err := BatchSelectMeals(groupA, mealID, MealTypeA, "系统")
 	if err != nil {
 		return 0, fmt.Errorf("为A组学生批量选餐失败: %v", err)
 	}
 
 	// 批量选B餐
-	countB, err := BatchSelectMeals(groupB, mealID, MealTypeB)
+	countB, err := BatchSelectMeals(groupB, mealID, MealTypeB, "系统")
 	if err != nil {
 		return countA, fmt.Errorf("为B组学生批量选餐失败: %v", err)
 	}

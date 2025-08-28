@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/itsHenry35/canteen-management-system/models"
 	"github.com/itsHenry35/canteen-management-system/services"
 	"github.com/itsHenry35/canteen-management-system/utils"
 )
@@ -17,6 +18,7 @@ const (
 	UserIDKey   ContextKey = "user_id"
 	UsernameKey ContextKey = "username"
 	RoleKey     ContextKey = "role"
+	RelationKey ContextKey = "relation"
 )
 
 // AuthMiddleware 身份验证中间件
@@ -44,10 +46,18 @@ func AuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
+		// 验证用户存在
+		_, err = models.GetUserByID(claims.UserID)
+		if err != nil {
+			utils.ResponseError(w, http.StatusUnauthorized, "user not found")
+			return
+		}
+
 		// 将用户信息存储在上下文中
 		ctx := context.WithValue(r.Context(), UserIDKey, claims.UserID)
 		ctx = context.WithValue(ctx, UsernameKey, claims.Username)
 		ctx = context.WithValue(ctx, RoleKey, claims.Role)
+		ctx = context.WithValue(ctx, RelationKey, claims.Relation)
 
 		// 调用下一个处理程序
 		next.ServeHTTP(w, r.WithContext(ctx))
@@ -59,7 +69,7 @@ func RoleMiddleware(roles ...services.UserRole) func(http.Handler) http.Handler 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// 从上下文获取用户角色
-			userRole, ok := r.Context().Value(RoleKey).(services.UserRole)
+			userRole, ok := GetRoleFromContext(r)
 			if !ok {
 				utils.ResponseError(w, http.StatusUnauthorized, "unauthorized")
 				return
@@ -95,4 +105,25 @@ func GetUserIDFromContext(r *http.Request) (int, bool) {
 func GetRoleFromContext(r *http.Request) (services.UserRole, bool) {
 	role, ok := r.Context().Value(RoleKey).(services.UserRole)
 	return role, ok
+}
+
+// GetRelationFromContext 从上下文获取学生关系
+func GetRelationFromContext(r *http.Request) (string, bool) {
+	relation, ok := r.Context().Value(RelationKey).(string)
+	return relation, ok
+}
+
+// GetFullnameFromContext 从上下文获取用户全名
+func GetFullnameFromContext(r *http.Request) (string, bool) {
+	userID, ok := GetUserIDFromContext(r)
+	if !ok {
+		return "", false
+	}
+
+	operator, err := models.GetUserByID(userID)
+	if err != nil {
+		return "", false
+	}
+
+	return operator.FullName, true
 }
