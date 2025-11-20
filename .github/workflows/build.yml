@@ -13,7 +13,7 @@ jobs:
     steps:
       # 1. Checkout 后端仓库
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       # 2. 下载前端 zip
       - name: Download frontend build
